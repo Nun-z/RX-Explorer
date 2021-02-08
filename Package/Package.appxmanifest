@@ -14,13 +14,13 @@
   IgnorableNamespaces="uap mp desktop uap5 rescap desktop5 com desktop4 iot2">
 
   <Identity
-    Name="36186RuoFan.USB"
-    Publisher="CN=4FF1CB23-04BD-4F9C-A86A-B4A43196FE02"
-    Version="6.0.1.0" />
+    Name="38290N-Soft.RXFileExplorer"
+    Publisher="CN=DBEECBAB-E09C-4284-B5EA-80CDCB791506"
+    Version="6.0.4.0" />
 
   <Properties>
-    <DisplayName>ms-resource:App_Display_Name</DisplayName>
-    <PublisherDisplayName>Ruo_Fan</PublisherDisplayName>
+    <DisplayName>RX File Explorer</DisplayName>
+    <PublisherDisplayName>libretro</PublisherDisplayName>
     <Logo>Images\StoreLogo.png</Logo>
   </Properties>
 
@@ -44,7 +44,7 @@
       iot2:SupportsMultipleInstances="true">
 
       <uap:VisualElements
-        DisplayName="ms-resource:App_Display_Name"
+        DisplayName="RX File Explorer"
         Description="ms-resource:App_Display_Name"
         BackgroundColor="transparent"
         Square150x150Logo="Images\Square150x150Logo.png"
