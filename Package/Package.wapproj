@@ -59,7 +59,8 @@
     <AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
     <AppxAutoIncrementPackageRevision>True</AppxAutoIncrementPackageRevision>
     <GenerateTestArtifacts>False</GenerateTestArtifacts>
-    <AppxBundlePlatforms>x64</AppxBundlePlatforms>
+    <AppxBundlePlatforms>arm64</AppxBundlePlatforms>
+    <LangVersion>9.0</LangVersion>
     <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
     <EntryPointProjectUniqueName>..\RX_Explorer\RX_Explorer.csproj</EntryPointProjectUniqueName>
     <PackageCertificateThumbprint>0BBFDBD9C447C9D649842B156AB88BB1C883023D</PackageCertificateThumbprint>
