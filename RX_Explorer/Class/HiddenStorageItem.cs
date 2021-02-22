@@ -11,7 +11,7 @@ namespace RX_Explorer.Class
     {
         private HiddenItemPackage DataPackage;
 
-        public override Task<IStorageItem> GetStorageItem()
+        public override Task<IStorageItem> GetStorageItemAsync()
         {
             return Task.FromResult<IStorageItem>(null);
         }
@@ -33,7 +33,7 @@ namespace RX_Explorer.Class
         {
             using (FullTrustProcessController.ExclusiveUsage Exclusive = await FullTrustProcessController.GetAvailableController())
             {
-                DataPackage = await Exclusive.Controller.GetHiddenItemInfoAsync(Path).ConfigureAwait(true);
+                DataPackage = await Exclusive.Controller.GetHiddenItemDataAsync(Path).ConfigureAwait(true);
 
                 if ((DataPackage?.IconData.Length).GetValueOrDefault() > 0)
                 {

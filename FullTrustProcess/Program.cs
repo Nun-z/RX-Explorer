@@ -19,6 +19,7 @@ using Vanara.Windows.Shell;
 using Windows.ApplicationModel.AppService;
 using Windows.Foundation.Collections;
 using Windows.Storage;
+using Windows.Storage.Streams;
 
 namespace FullTrustProcess
 {
@@ -46,6 +47,7 @@ namespace FullTrustProcess
                     PackageFamilyName = "36186RuoFan.USB_q3e6crc0w375t"
                 };
                 Connection.RequestReceived += Connection_RequestReceived;
+                Connection.ServiceClosed += Connection_ServiceClosed;
 
                 if (await Connection.OpenAsync() == AppServiceConnectionStatus.Success)
                 {
@@ -87,6 +89,11 @@ namespace FullTrustProcess
 
                 Environment.Exit(0);
             }
+        }
+
+        private static void Connection_ServiceClosed(AppServiceConnection sender, AppServiceClosedEventArgs args)
+        {
+            ExitLocker.Set();
         }
 
         private async static void Connection_RequestReceived(AppServiceConnection sender, AppServiceRequestReceivedEventArgs args)
@@ -305,7 +312,70 @@ namespace FullTrustProcess
 
                             break;
                         }
-                    case "Execute_GetHyperlinkInfo":
+                    case "Execute_GetInstalledApplication":
+                        {
+                            string PFN = Convert.ToString(args.Request.Message["PackageFamilyName"]);
+
+                            InstalledApplicationPackage Pack = await Helper.GetInstalledApplicationAsync(PFN).ConfigureAwait(true);
+
+                            if (Pack != null)
+                            {
+                                ValueSet Value = new ValueSet
+                                {
+                                    {"Success", JsonSerializer.Serialize(Pack)}
+                                };
+
+                                await args.Request.SendResponseAsync(Value);
+                            }
+                            else
+                            {
+                                ValueSet Value = new ValueSet
+                                {
+                                    {"Error",  "Could not found the package with PFN"}
+                                };
+
+                                await args.Request.SendResponseAsync(Value);
+                            }
+                            break;
+                        }
+                    case "Execute_GetAllInstalledApplication":
+                        {
+                            ValueSet Value = new ValueSet
+                            {
+                                {"Success", JsonSerializer.Serialize(await Helper.GetInstalledApplicationAsync())}
+                            };
+
+                            await args.Request.SendResponseAsync(Value);
+
+                            break;
+                        }
+                    case "Execute_CheckPackageFamilyNameExist":
+                        {
+                            string PFN = Convert.ToString(args.Request.Message["PackageFamilyName"]);
+
+                            ValueSet Value = new ValueSet
+                            {
+                                {"Success", Helper.CheckIfPackageFamilyNameExist(PFN) }
+                            };
+
+                            await args.Request.SendResponseAsync(Value);
+
+                            break;
+                        }
+                    case "Execute_LaunchUWPLnkFile":
+                        {
+                            string PFN = Convert.ToString(args.Request.Message["PackageFamilyName"]);
+
+                            ValueSet Value = new ValueSet
+                            {
+                                {"Success", await Helper.LaunchApplicationFromPackageFamilyName(PFN) }
+                            };
+
+                            await args.Request.SendResponseAsync(Value);
+
+                            break;
+                        }
+                    case "Execute_GetLnkData":
                         {
                             string ExecutePath = Convert.ToString(args.Request.Message["ExecutePath"]);
 
@@ -333,7 +403,16 @@ namespace FullTrustProcess
                                             ActualPath = ActualPath.Replace($"%{Var.Value}%", Environment.GetEnvironmentVariable(Var.Value));
                                         }
 
-                                        Value.Add("Success", JsonSerializer.Serialize(new HyperlinkPackage(ExecutePath, ActualPath, Array.Empty<string>(), string.Empty, false)));
+                                        using (ShellItem Item = new ShellItem(ActualPath))
+                                        using (Image IconImage = Item.GetImage(new Size(150, 150), ShellItemGetImageOptions.BiggerSizeOk))
+                                        using (MemoryStream IconStream = new MemoryStream())
+                                        {
+                                            Bitmap TempBitmap = new Bitmap(IconImage);
+                                            TempBitmap.MakeTransparent();
+                                            TempBitmap.Save(IconStream, ImageFormat.Png);
+
+                                            Value.Add("Success", JsonSerializer.Serialize(new HyperlinkPackage(ExecutePath, ActualPath, string.Empty, false, IconStream.ToArray())));
+                                        }
                                     }
                                     else
                                     {
@@ -346,7 +425,18 @@ namespace FullTrustProcess
                                     {
                                         if (string.IsNullOrEmpty(Link.TargetPath))
                                         {
-                                            Value.Add("Error", "TargetPath is invalid");
+                                            string PackageFamilyName = Helper.GetPackageFamilyNameFromUWPShellLink(ExecutePath);
+
+                                            if (string.IsNullOrEmpty(PackageFamilyName))
+                                            {
+                                                Value.Add("Error", "TargetPath is invalid");
+                                            }
+                                            else
+                                            {
+                                                byte[] IconData = await Helper.GetIconDataFromPackageFamilyName(PackageFamilyName).ConfigureAwait(true);
+
+                                                Value.Add("Success", JsonSerializer.Serialize(new HyperlinkPackage(ExecutePath, PackageFamilyName, Link.Description, false, IconData)));
+                                            }
                                         }
                                         else
                                         {
@@ -366,7 +456,16 @@ namespace FullTrustProcess
                                                 ActualPath = ActualPath.Replace($"%{Var.Value}%", Environment.GetEnvironmentVariable(Var.Value));
                                             }
 
-                                            Value.Add("Success", JsonSerializer.Serialize(new HyperlinkPackage(ExecutePath, ActualPath, Arguments.ToArray(), Link.Description, Link.RunAsAdministrator)));
+                                            using (ShellItem Item = new ShellItem(ActualPath))
+                                            using (Image IconImage = Item.GetImage(new Size(150, 150), ShellItemGetImageOptions.BiggerSizeOk))
+                                            using (MemoryStream IconStream = new MemoryStream())
+                                            {
+                                                Bitmap TempBitmap = new Bitmap(IconImage);
+                                                TempBitmap.MakeTransparent();
+                                                TempBitmap.Save(IconStream, ImageFormat.Png);
+
+                                                Value.Add("Success", JsonSerializer.Serialize(new HyperlinkPackage(ExecutePath, ActualPath, Link.Description, Link.RunAsAdministrator, IconStream.ToArray(), Arguments.ToArray())));
+                                            }
                                         }
                                     }
                                 }

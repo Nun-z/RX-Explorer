@@ -1,5 +1,4 @@
-﻿using HtmlAgilityPack;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -8,13 +7,14 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Windows.Data.Xml.Dom;
 using Windows.Storage;
 
 namespace RX_Explorer.Class
 {
     public sealed class BingPictureDownloader
     {
-        public static async Task<StorageFile> UpdateBingPicture()
+        public static async Task<StorageFile> GetBingPictureAsync()
         {
             string Path = await GetDailyPhotoPath().ConfigureAwait(false);
 
@@ -76,7 +76,7 @@ namespace RX_Explorer.Class
                 }
                 catch (Exception ex)
                 {
-                    LogTracer.Log(ex, $"An error was threw in {nameof(UpdateBingPicture)}");
+                    LogTracer.Log(ex, $"An error was threw in {nameof(GetBingPictureAsync)}");
                     return ExistFile;
                 }
             }
@@ -117,7 +117,7 @@ namespace RX_Explorer.Class
                 }
                 catch (Exception ex)
                 {
-                    LogTracer.Log(ex, $"An error was threw in {nameof(UpdateBingPicture)}");
+                    LogTracer.Log(ex, $"An error was threw in {nameof(GetBingPictureAsync)}");
                     return null;
                 }
             }
@@ -135,12 +135,12 @@ namespace RX_Explorer.Class
                 using (Stream ResponseStream = Response.GetResponseStream())
                 using (StreamReader Reader = new StreamReader(ResponseStream))
                 {
-                    string HtmlString = await Reader.ReadToEndAsync().ConfigureAwait(false);
+                    string XmlString = await Reader.ReadToEndAsync().ConfigureAwait(false);
 
-                    HtmlDocument Document = new HtmlDocument();
-                    Document.LoadHtml(HtmlString);
+                    XmlDocument Document = new XmlDocument();
+                    Document.LoadXml(XmlString);
 
-                    if (Document.DocumentNode.SelectSingleNode("/images/image/url") is HtmlNode Node)
+                    if (Document.SelectSingleNode("/images/image/url") is IXmlNode Node)
                     {
                         return Node.InnerText;
                     }
@@ -162,7 +162,8 @@ namespace RX_Explorer.Class
             try
             {
                 FileSystemStorageItemBase TempFolder = await FileSystemStorageItemBase.OpenAsync(ApplicationData.Current.TemporaryFolder.Path, ItemFilters.Folder);
-                List<FileSystemStorageItemBase> AllPreviousPictureList = TempFolder.GetChildrenItems(false, ItemFilters.File).Where((Item) => Item.Name.StartsWith("BingDailyPicture_Cache")).ToList();
+
+                IEnumerable<FileSystemStorageItemBase> AllPreviousPictureList = (await TempFolder.GetChildrenItemsAsync(false, ItemFilters.File).ConfigureAwait(true)).Where((Item)=> Item.Name.StartsWith("BingDailyPicture_Cache"));
 
                 if (AllPreviousPictureList.All((Item) => DateTime.TryParseExact(Regex.Match(Item.Name, @"(?<=\[)(.+)(?=\])").Value, "yyyy-MM-dd HH-mm-ss", CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out DateTime LastUpdateDate) && LastUpdateDate < DateTime.Now.Date))
                 {

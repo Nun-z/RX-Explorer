@@ -1,12 +1,12 @@
 ﻿using RX_Explorer.Class;
 using System;
-using System.Linq;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Windows.Storage;
-using Windows.Storage.Streams;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Navigation;
@@ -20,38 +20,81 @@ namespace RX_Explorer
 
         private Encoding CurrentEncoding;
 
+        private readonly ObservableCollection<Encoding> AvailableEncoding = new ObservableCollection<Encoding>();
+
         public TextViewer()
         {
             InitializeComponent();
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+            Loaded += TextViewer_Loaded;
+
+            try
+            {
+                if (Globalization.CurrentLanguage == LanguageEnum.Chinese_Simplified)
+                {
+                    AvailableEncoding.Add(Encoding.GetEncoding("GBK"));
+                }
+            }
+            catch (Exception ex)
+            {
+                LogTracer.Log(ex, "Could not load GBK encoding");
+            }
+
+            foreach (Encoding Coding in Encoding.GetEncodings().Select((Info) => Info.GetEncoding()))
+            {
+                AvailableEncoding.Add(Coding);
+            }
         }
 
-        private void Initialize()
+        private async void TextViewer_Loaded(object sender, RoutedEventArgs e)
         {
-            EncodingInfo[] EncodingCollection = Encoding.GetEncodings();
-            EncodingProfile.ItemsSource = EncodingCollection;
+            LoadingControl.IsLoading = true;
+            await Initialize().ConfigureAwait(true);
+            await Task.Delay(500).ConfigureAwait(true);
+            LoadingControl.IsLoading = false;
+        }
 
-            Encoding DetectedEncoding = DetectEncodingFromFile();
+        private async Task Initialize()
+        {
+            Encoding DetectedEncoding = await DetectEncodingFromFileAsync().ConfigureAwait(true);
 
-            if (EncodingCollection.FirstOrDefault((Enco) => Enco.CodePage == DetectedEncoding.CodePage) is EncodingInfo Info)
+            if (DetectedEncoding != null)
             {
-                EncodingProfile.SelectedItem = Info;
+                if (AvailableEncoding.FirstOrDefault((Enco) => Enco.CodePage == DetectedEncoding.CodePage) is Encoding Coding)
+                {
+                    EncodingProfile.SelectedItem = Coding;
+                }
+                else
+                {
+                    EncodingProfile.SelectedItem = AvailableEncoding.FirstOrDefault((Enco) => Enco.CodePage == Encoding.UTF8.CodePage);
+                }
             }
             else
             {
-                EncodingProfile.SelectedItem = EncodingCollection.FirstOrDefault((Enco) => Enco.CodePage == Encoding.UTF8.CodePage);
+                EncodingProfile.SelectedItem = AvailableEncoding.FirstOrDefault((Enco) => Enco.CodePage == Encoding.UTF8.CodePage);
             }
         }
 
-        private Encoding DetectEncodingFromFile()
+        private Task<Encoding> DetectEncodingFromFileAsync()
         {
-            using (FileStream DetectStream = TextFile.GetFileStreamFromFile(AccessMode.Read))
-            using (StreamReader Reader = new StreamReader(DetectStream, Encoding.Default, true))
+            return Task.Run(() =>
             {
-                Reader.Read();
+                try
+                {
+                    using (FileStream DetectStream = TextFile.GetFileStreamFromFile(AccessMode.Read))
+                    using (StreamReader Reader = new StreamReader(DetectStream, Encoding.Default, true))
+                    {
+                        Reader.Read();
 
-                return Reader.CurrentEncoding;
-            }
+                        return Reader.CurrentEncoding;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogTracer.Log(ex, "Could not detect the encoding of file");
+                    return null;
+                }
+            });
         }
 
         protected override void OnNavigatedTo(NavigationEventArgs e)
@@ -60,8 +103,6 @@ namespace RX_Explorer
             {
                 TextFile = Parameters;
                 Title.Text = TextFile.Name;
-
-                Initialize();
             }
         }
 
@@ -69,6 +110,7 @@ namespace RX_Explorer
         {
             TextFile = null;
             Text.Text = string.Empty;
+            EncodingProfile.SelectedIndex = -1;
         }
 
         private async void Save_Click(object sender, RoutedEventArgs e)
@@ -124,9 +166,9 @@ namespace RX_Explorer
 
         private async void EncodingProfile_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (EncodingProfile.SelectedItem is EncodingInfo Info)
+            if (EncodingProfile.SelectedItem is Encoding Coding)
             {
-                CurrentEncoding = Info.GetEncoding();
+                CurrentEncoding = Coding;
                 await LoadTextWithEncoding(CurrentEncoding).ConfigureAwait(false);
             }
         }
@@ -135,11 +177,11 @@ namespace RX_Explorer
         {
             try
             {
-                if (Encoding.GetEncodings().FirstOrDefault((Enco) => Enco.DisplayName == args.Text) is EncodingInfo ExistEnco)
+                if (AvailableEncoding.FirstOrDefault((Enco) => Enco.EncodingName == args.Text) is Encoding ExistCoding)
                 {
-                    if (CurrentEncoding != ExistEnco.GetEncoding())
+                    if (CurrentEncoding != ExistCoding)
                     {
-                        CurrentEncoding = ExistEnco.GetEncoding();
+                        CurrentEncoding = ExistCoding;
                         _ = LoadTextWithEncoding(CurrentEncoding);
                     }
                 }

@@ -8,7 +8,7 @@
              xmlns:control="using:Microsoft.Toolkit.Uwp.UI.Controls"
              xmlns:sys="using:System"
              mc:Ignorable="d"
-             d:DesignHeight="3000"
+             d:DesignHeight="3300"
              d:DesignWidth="1280">
 
     <UserControl.Resources>
@@ -300,6 +300,42 @@
                                   OnContent="启用"
                                   OffContent="禁用"/>
 
+                    <ToggleSwitch Header="弹出删除确认提示框"
+                                  Margin="0,20,0,0"
+                                  Name="DeleteConfirmSwitch"
+                                  x:Uid="DeleteConfirmSwitch"
+                                  Toggled="DeleteConfirmSwitch_Toggled"
+                                  OnContent="启用"
+                                  OffContent="禁用" />
+
+                    <StackPanel Orientation="Horizontal"
+                                Name="DeleteConfirmArea">
+                        <Line X1="15"
+                              X2="15"
+                              Y1="3"
+                              Y2="29"
+                              StrokeThickness="3"
+                              Stroke="Gray" />
+                        <CheckBox Margin="20,0,0,0"
+                                  Name="AvoidRecycleBin"
+                                  Checked="AvoidRecycleBin_Checked"
+                                  Unchecked="AvoidRecycleBin_Unchecked">
+                            <StackPanel Orientation="Horizontal"
+                                        Padding="0,1,0,0">
+                                <Viewbox Height="16"
+                                         Margin="0,1,0,0"
+                                         VerticalAlignment="Center">
+                                    <FontIcon FontFamily="Segoe MDL2 Assets"
+                                              Glyph="&#xE7BA;"
+                                              Foreground="Yellow" />
+                                </Viewbox>
+                                <TextBlock Text="绕过回收站并永久删除"
+                                           Margin="5,0,0,0"
+                                           x:Uid="AvoidRecycleBin"/>
+                            </StackPanel>
+                        </CheckBox>
+                    </StackPanel>
+
                     <ComboBox Header="搜索引擎配置"
                               Margin="0,20,0,0"
                               MinWidth="150"
@@ -329,6 +365,91 @@
                                         x:Name="ModifyTerminal"
                                         Tapped="ModifyTerminal_Tapped" />
                         </Viewbox>
+                    </StackPanel>
+
+                    <TextBlock Text="启动时"
+                               FontSize="22"
+                               Margin="0,30,0,0"
+                               x:Uid="SettingStartup"/>
+
+                    <StackPanel Margin="0,10,0,0">
+                        <RadioButton Content="打开新标签页"
+                                     Margin="0,5,0,0"
+                                     x:Uid="SettingStartupWithNewTab"
+                                     Name="StartupWithNewTab"
+                                     Checked="StartupWithNewTab_Checked"/>
+                        <RadioButton Content="恢复上次打开的标签页"
+                                     Margin="0,5,0,0"
+                                     x:Uid="SettingStartupWithLastTab"
+                                     Name="StartupWithLastTab"
+                                     Checked="StartupWithLastTab_Checked"/>
+                        <RadioButton Content="打开一个或多个指定标签页"
+                                     Margin="0,5,0,0"
+                                     x:Uid="SettingStartupWithSpecificTab"
+                                     Name="StartupSpecificTab"
+                                     Checked="StartupSpecificTab_Checked"/>
+                        <ListView MinWidth="250"
+                                  Margin="29,5,0,0"
+                                  Visibility="{x:Bind StartupSpecificTab.IsChecked, Mode=OneWay}"
+                                  x:Name="SpecificTabListView"
+                                  SelectionMode="None"
+                                  Loaded="SpecificTabListView_Loaded">
+                            <ListView.Header>
+                                <Grid Padding="0,5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="25"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="指定文件夹"
+                                               x:Uid="SpecificTabListViewHeader"
+                                               VerticalAlignment="Center" />
+                                    <Button Background="{ThemeResource SystemControlTransparentRevealBackgroundBrush}"
+                                            Style="{ThemeResource ButtonRevealStyle}"
+                                            VerticalAlignment="Center"
+                                            Padding="5"
+                                            Height="25"
+                                            Width="25"
+                                            Grid.Column="1"
+                                            Name="AddSpecificTab"
+                                            Click="AddSpecificTab_Click">
+                                        <Viewbox>
+                                            <SymbolIcon Symbol="Add" />
+                                        </Viewbox>
+                                    </Button>
+                                </Grid>
+                            </ListView.Header>
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="HorizontalContentAlignment"
+                                            Value="Stretch" />
+                                    <Setter Property="Padding"
+                                            Value="10,0,0,0" />
+                                </Style>
+                            </ListView.ItemContainerStyle>
+                            <ListView.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="60"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="{Binding}"
+                                                   ToolTipService.ToolTip="{Binding}"
+                                                   IsTextSelectionEnabled="True"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   VerticalAlignment="Center"/>
+                                        <Button Background="{ThemeResource SystemControlTransparentRevealBackgroundBrush}"
+                                                Style="{ThemeResource ButtonRevealStyle}"
+                                                Content="删除"
+                                                x:Uid="SpecificTabListViewDelete"
+                                                Grid.Column="1"
+                                                HorizontalAlignment="Stretch"
+                                                Name="DeleteSpecificTabButton"
+                                                Click="DeleteSpecificTabButton_Click"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
                     </StackPanel>
 
                     <TextBlock Text="个性化"
@@ -493,8 +614,8 @@
                             <RadioButton Content="必应每日壁纸"
                                          Name="BingPictureMode"
                                          x:Uid="CustomUISubtype3"
-                                         GroupName="CustomSubRadio"
-                                         Checked="BingPictureMode_Checked" />
+                                         Checked="BingPictureMode_Checked"
+                                         GroupName="CustomSubRadio"/>
                             <muxc:ProgressRing IsActive="True"
                                                Margin="10,0,0,0"
                                                Height="18"

@@ -880,9 +880,6 @@
   <data name="TextViewerCancel.Label" xml:space="preserve">
     <value>取消</value>
   </data>
-  <data name="TextViewerLoading.Text" xml:space="preserve">
-    <value>正在讀取...</value>
-  </data>
   <data name="TextViewerSave.Label" xml:space="preserve">
     <value>儲存</value>
   </data>
@@ -1278,7 +1275,7 @@
     <value>記憶體硬碟</value>
   </data>
   <data name="Device_Type_5" xml:space="preserve">
-    <value>不明</value>
+    <value>網絡驅動器</value>
   </data>
   <data name="FileProperty_Bitrate" xml:space="preserve">
     <value>位元率</value>
@@ -1980,9 +1977,6 @@
   <data name="QueueDialog_RecycleBinEmptyError_Content" xml:space="preserve">
     <value>發生意外錯誤，無法清空資源回收筒</value>
   </data>
-  <data name="PermanentDelete.Content" xml:space="preserve">
-    <value>永久刪除這個檔案</value>
-  </data>
   <data name="ComputeHash.Text" xml:space="preserve">
     <value>計算哈希值</value>
   </data>
@@ -2260,12 +2254,6 @@
   </data>
   <data name="QueueDialog_LinkIsNotAllowInMixZip_Content" xml:space="preserve">
     <value>要壓縮的文件不能包含lnk文件</value>
-  </data>
-  <data name="QuickStart_Picker_Application" xml:space="preserve">
-    <value>選擇一個文件</value>
-  </data>
-  <data name="QuickStart_Picker_Web" xml:space="preserve">
-    <value>自定義圖標</value>
   </data>
   <data name="QuickStartAddButton.Label" xml:space="preserve">
     <value>新增</value>
@@ -2611,5 +2599,66 @@
   </data>
   <data name="NameFilterCheckBox6Text.PlaceholderText" xml:space="preserve">
     <value>請輸入正則表達式</value>
+  </data>
+  <data name="Progress_Tip_Busy" xml:space="preserve">
+    <value>正在等待回應</value>
+  </data>
+  <data name="QuickStartPickLogo.Content" xml:space="preserve">
+    <value>自定義圖標</value>
+  </data>
+  <data name="QuickStartPickUWPTip.ActionButtonContent" xml:space="preserve">
+    <value>確認</value>
+  </data>
+  <data name="QuickStartPickUWPTip.CloseButtonContent" xml:space="preserve">
+    <value>取消</value>
+  </data>
+  <data name="QuickStartPickUWPTip.Title" xml:space="preserve">
+    <value>選擇UWP應用</value>
+  </data>
+  <data name="QuickStartPickApp.Content" xml:space="preserve">
+    <value>選擇應用</value>
+  </data>
+  <data name="QueueDialog_LaunchFailed_Content" xml:space="preserve">
+    <value>無法啟動應用程序</value>
+  </data>
+  <data name="Toast_BroadFileSystemAccess_Text_1" xml:space="preserve">
+    <value>等待用戶完成操作...</value>
+  </data>
+  <data name="Toast_BroadFileSystemAccess_Text_2" xml:space="preserve">
+    <value>請打開文件系統權限，然後點擊下面的啟動按鈕立即開始</value>
+  </data>
+  <data name="ExtendedSplash_Access_Tips" xml:space="preserve">
+    <value>請啟用此應用程序的文件系統訪問權限，以使其正常運行\r然後重新啟動該應用程序</value>
+    <comment>Please keep all \r in this sentence after translate</comment>
+  </data>
+  <data name="SettingStartup.Text" xml:space="preserve">
+    <value>啟動時</value>
+  </data>
+  <data name="SettingStartupWithLastTab.Content" xml:space="preserve">
+    <value>恢復上次打開的標籤頁</value>
+  </data>
+  <data name="SettingStartupWithNewTab.Content" xml:space="preserve">
+    <value>打開新標籤頁</value>
+  </data>
+  <data name="SettingStartupWithSpecificTab.Content" xml:space="preserve">
+    <value>打開一個或多個特定標籤頁</value>
+  </data>
+  <data name="SpecificTabListViewDelete.Content" xml:space="preserve">
+    <value>刪除</value>
+  </data>
+  <data name="SpecificTabListViewHeader.Text" xml:space="preserve">
+    <value>指定文件夾</value>
+  </data>
+  <data name="AvoidRecycleBin.Text" xml:space="preserve">
+    <value>跳過回收站並永久刪除</value>
+  </data>
+  <data name="DeleteConfirmSwitch.Header" xml:space="preserve">
+    <value>彈出刪除確認</value>
+  </data>
+  <data name="DeleteConfirmSwitch.OffContent" xml:space="preserve">
+    <value>禁用</value>
+  </data>
+  <data name="DeleteConfirmSwitch.OnContent" xml:space="preserve">
+    <value>啟用</value>
   </data>
 </root>

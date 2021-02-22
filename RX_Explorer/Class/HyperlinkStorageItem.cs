@@ -3,17 +3,25 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Windows.ApplicationModel;
+using Windows.ApplicationModel.Core;
+using Windows.Management.Deployment;
 using Windows.Storage;
+using Windows.Storage.Streams;
+using Windows.UI.Core;
+using Windows.UI.Xaml.Media.Imaging;
 
 namespace RX_Explorer.Class
 {
     public sealed class HyperlinkStorageItem : FileSystemStorageItemBase
     {
+        public ShellLinkType LinkType { get; private set; } = ShellLinkType.Normal;
+
         public string LinkTargetPath
         {
             get
             {
-                return Package?.LinkTargetPath ?? Globalization.GetString("UnknownText");
+                return Data?.LinkTargetPath ?? Globalization.GetString("UnknownText");
             }
         }
 
@@ -21,7 +29,7 @@ namespace RX_Explorer.Class
         {
             get
             {
-                return Package?.Argument ?? Array.Empty<string>();
+                return Data?.Argument ?? Array.Empty<string>();
             }
         }
 
@@ -29,11 +37,11 @@ namespace RX_Explorer.Class
         {
             get
             {
-                return (Package?.NeedRunAsAdmin).GetValueOrDefault();
+                return (Data?.NeedRunAsAdmin).GetValueOrDefault();
             }
         }
 
-        private HyperlinkPackage Package;
+        private HyperlinkPackage Data;
 
         public override string Path
         {
@@ -67,42 +75,72 @@ namespace RX_Explorer.Class
             }
         }
 
-        public override async Task<IStorageItem> GetStorageItem()
+        public async Task LaunchAsync()
         {
-            if (StorageItem == null)
+            using (FullTrustProcessController.ExclusiveUsage Exclusive = await FullTrustProcessController.GetAvailableController())
             {
-                try
+                if (LinkType == ShellLinkType.Normal)
                 {
-                    using (FullTrustProcessController.ExclusiveUsage Exclusive = await FullTrustProcessController.GetAvailableController())
+                    await Exclusive.Controller.RunAsync(LinkTargetPath, NeedRunAsAdmin, false, false, Arguments).ConfigureAwait(true);
+                }
+                else
+                {
+                    if (!await Exclusive.Controller.LaunchUWPLnkAsync(LinkTargetPath).ConfigureAwait(true))
                     {
-                        Package = await Exclusive.Controller.GetHyperlinkRelatedInformationAsync(InternalPathString).ConfigureAwait(false);
-
-                        if (WIN_Native_API.CheckExist(LinkTargetPath))
+                        await CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal, async () =>
                         {
-                            if (WIN_Native_API.CheckType(LinkTargetPath) == StorageItemTypes.Folder)
+                            QueueContentDialog Dialog = new QueueContentDialog
                             {
-                                return StorageItem = await StorageFolder.GetFolderFromPathAsync(LinkTargetPath);
-                            }
-                            else
+                                Title = Globalization.GetString("Common_Dialog_ErrorTitle"),
+                                Content = Globalization.GetString("QueueDialog_LaunchFailed_Content"),
+                                CloseButtonText = Globalization.GetString("Common_Dialog_CloseButton")
+                            };
+
+                            await Dialog.ShowAsync().ConfigureAwait(true);
+                        });
+                    }
+                }
+            }
+        }
+
+        public override Task<IStorageItem> GetStorageItemAsync()
+        {
+            return Task.FromResult<IStorageItem>(null);
+        }
+
+        protected override async Task LoadMorePropertyCore()
+        {
+            try
+            {
+                using (FullTrustProcessController.ExclusiveUsage Exclusive = await FullTrustProcessController.GetAvailableController())
+                {
+                    Data = await Exclusive.Controller.GetLnkDataAsync(InternalPathString).ConfigureAwait(true);
+
+                    if (!string.IsNullOrEmpty(Data.LinkTargetPath))
+                    {
+                        if (Data.IconData.Length != 0)
+                        {
+                            using (MemoryStream IconStream = new MemoryStream(Data.IconData))
                             {
-                                return StorageItem = await StorageFile.GetFileFromPathAsync(LinkTargetPath);
+                                Thumbnail = new BitmapImage();
+                                await Thumbnail.SetSourceAsync(IconStream.AsRandomAccessStream());
                             }
+                        }
+
+                        if (await CheckExist(Data.LinkTargetPath).ConfigureAwait(true))
+                        {
+                            LinkType = ShellLinkType.Normal;
                         }
                         else
                         {
-                            return StorageItem = null;
+                            LinkType = ShellLinkType.UWP;
                         }
                     }
                 }
-                catch (Exception ex)
-                {
-                    LogTracer.Log(ex, $"Could not get hyperlink file, path: {InternalPathString}");
-                    return StorageItem = null;
-                }
             }
-            else
+            catch (Exception ex)
             {
-                return StorageItem;
+                LogTracer.Log(ex, $"Could not get hyperlink file, path: {InternalPathString}");
             }
         }
 

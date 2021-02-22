@@ -2,6 +2,19 @@
 
 namespace RX_Explorer.Class
 {
+    public enum StartupMode
+    {
+        CreateNewTab,
+        LastOpenedTab,
+        SpecificTab
+    }
+
+    public enum ShellLinkType
+    {
+        Normal,
+        UWP
+    }
+
     [Flags]
     public enum NameFilterCondition
     {

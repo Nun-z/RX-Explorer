@@ -1,15 +1,14 @@
-﻿using HtmlAgilityPack;
-using Microsoft.UI.Xaml.Controls;
+﻿using Microsoft.UI.Xaml.Controls;
 using RX_Explorer.Class;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using Windows.ApplicationModel;
 using Windows.ApplicationModel.DataTransfer;
+using Windows.Data.Xml.Dom;
 using Windows.Devices.Enumeration;
 using Windows.Devices.Portable;
 using Windows.Storage;
@@ -30,8 +29,6 @@ namespace RX_Explorer
 {
     public sealed partial class TabViewContainer : Page
     {
-        private int LockResource;
-
         public static Frame CurrentNavigationControl { get; private set; }
 
         private readonly DeviceWatcher PortalDeviceWatcher = DeviceInformation.CreateWatcher(DeviceClass.PortableStorageDevice);
@@ -78,7 +75,7 @@ namespace RX_Explorer
                     {
                         case VirtualKey.T when CtrlState.HasFlag(CoreVirtualKeyStates.Down):
                             {
-                                CreateNewTab(null);
+                                await CreateNewTabAsync(null).ConfigureAwait(true);
                                 args.Handled = true;
 
                                 break;
@@ -122,28 +119,14 @@ namespace RX_Explorer
                                     }
                                     else
                                     {
-                                        if (AnimationController.Current.IsEnableAnimation)
-                                        {
-                                            CurrentNavigationControl.Navigate(typeof(FileControl), new Tuple<WeakReference<TabViewItem>, string>(new WeakReference<TabViewItem>(TabViewControl.SelectedItem as TabViewItem), Device.Folder.Path), new DrillInNavigationTransitionInfo());
-                                        }
-                                        else
-                                        {
-                                            CurrentNavigationControl.Navigate(typeof(FileControl), new Tuple<WeakReference<TabViewItem>, string>(new WeakReference<TabViewItem>(TabViewControl.SelectedItem as TabViewItem), Device.Folder.Path), new SuppressNavigationTransitionInfo());
-                                        }
+                                        await PC.OpenTargetFolder(Device.Folder).ConfigureAwait(true);
                                     }
 
                                     args.Handled = true;
                                 }
                                 else if (PC.LibraryGrid.SelectedItem is LibraryFolder Library)
                                 {
-                                    if (AnimationController.Current.IsEnableAnimation)
-                                    {
-                                        CurrentNavigationControl.Navigate(typeof(FileControl), new Tuple<WeakReference<TabViewItem>, string>(new WeakReference<TabViewItem>(TabViewControl.SelectedItem as TabViewItem), Library.Folder.Path), new DrillInNavigationTransitionInfo());
-                                    }
-                                    else
-                                    {
-                                        CurrentNavigationControl.Navigate(typeof(FileControl), new Tuple<WeakReference<TabViewItem>, string>(new WeakReference<TabViewItem>(TabViewControl.SelectedItem as TabViewItem), Library.Folder.Path), new SuppressNavigationTransitionInfo());
-                                    }
+                                    await PC.OpenTargetFolder(Library.Folder).ConfigureAwait(true);
 
                                     args.Handled = true;
                                 }
@@ -211,13 +194,13 @@ namespace RX_Explorer
             }
         }
 
-        public void CreateNewTab(int? InsertIndex, params string[] Path)
+        public async Task CreateNewTabAsync(int? InsertIndex, params string[] Path)
         {
             int Index = InsertIndex ?? (TabViewControl?.TabItems.Count ?? 0);
 
             try
             {
-                if (CreateNewTabCore(Path) is TabViewItem Item)
+                if (await CreateNewTabCoreAsync(Path).ConfigureAwait(true) is TabViewItem Item)
                 {
                     TabViewControl.TabItems.Insert(Index, Item);
                     TabViewControl.UpdateLayout();
@@ -226,7 +209,7 @@ namespace RX_Explorer
             }
             catch (Exception ex)
             {
-                if (CreateNewTabCore() is TabViewItem Item)
+                if (await CreateNewTabCoreAsync().ConfigureAwait(true) is TabViewItem Item)
                 {
                     TabViewControl.TabItems.Insert(Index, Item);
                     TabViewControl.UpdateLayout();
@@ -239,6 +222,25 @@ namespace RX_Explorer
 
         private void Current_Suspending(object sender, SuspendingEventArgs e)
         {
+            if (StartupModeController.GetStartupMode() == StartupMode.LastOpenedTab)
+            {
+                List<string[]> PathList = new List<string[]>();
+
+                foreach (Frame frame in TabViewControl.TabItems.OfType<TabViewItem>().Select((Tab) => Tab.Content as Frame))
+                {
+                    if (CommonAccessCollection.FrameFileControlDic.TryGetValue(frame, out FileControl Control))
+                    {
+                        PathList.Add(Control.BladeViewer.Items.OfType<Microsoft.Toolkit.Uwp.UI.Controls.BladeItem>().Select((Blade) => (Blade.Content as FilePresenter)?.CurrentFolder?.Path).ToArray());
+                    }
+                    else
+                    {
+                        PathList.Add(Array.Empty<string>());
+                    }
+                }
+
+                StartupModeController.SetLastOpenedPath(PathList);
+            }
+
             if (PortalDeviceWatcher != null && (PortalDeviceWatcher.Status == DeviceWatcherStatus.Started || PortalDeviceWatcher.Status == DeviceWatcherStatus.EnumerationCompleted))
             {
                 PortalDeviceWatcher.Stop();
@@ -263,7 +265,7 @@ namespace RX_Explorer
         {
             try
             {
-                List<string> AllBaseDevice = DriveInfo.GetDrives().Where((Drives) => Drives.DriveType == DriveType.Fixed)
+                List<string> AllBaseDevice = DriveInfo.GetDrives().Where((Drives) => Drives.DriveType == DriveType.Fixed || Drives.DriveType == DriveType.Network)
                                                                   .Select((Info) => Info.RootDirectory.FullName).ToList();
 
                 List<StorageFolder> PortableDevice = new List<StorageFolder>();
@@ -388,9 +390,20 @@ namespace RX_Explorer
 
             try
             {
-                await Task.WhenAll(LoadQuickStartItemsAsync(), LoadDeviceAsync(), LoadLibraryAsync()).ConfigureAwait(true);
+                if ((MainPage.ThisPage.ActivatePathArray?.Count).GetValueOrDefault() == 0)
+                {
+                    await CreateNewTabAsync(null).ConfigureAwait(true);
+                    await Task.WhenAll(LoadQuickStartItemsAsync(), LoadDeviceAsync(), LoadLibraryAsync()).ConfigureAwait(true);
+                }
+                else
+                {
+                    await Task.WhenAll(LoadQuickStartItemsAsync(), LoadDeviceAsync(), LoadLibraryAsync()).ConfigureAwait(true);
 
-                CreateNewTab(null, MainPage.ThisPage.ActivatePathArray);
+                    foreach (string[] PathArray in MainPage.ThisPage.ActivatePathArray)
+                    {
+                        await CreateNewTabAsync(null, PathArray).ConfigureAwait(true);
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -644,8 +657,8 @@ namespace RX_Explorer
 
         private async Task LoadDeviceAsync()
         {
-            foreach (DriveInfo Drive in DriveInfo.GetDrives().Where((Drives) => Drives.DriveType == DriveType.Fixed || Drives.DriveType == DriveType.Removable)
-                                                                 .Where((NewItem) => CommonAccessCollection.HardDeviceList.All((Item) => Item.Folder.Path != NewItem.RootDirectory.FullName)))
+            foreach (DriveInfo Drive in DriveInfo.GetDrives().Where((Drives) => Drives.DriveType == DriveType.Fixed || Drives.DriveType == DriveType.Removable || Drives.DriveType == DriveType.Network)
+                                                             .Where((NewItem) => CommonAccessCollection.HardDeviceList.All((Item) => Item.Folder.Path != NewItem.RootDirectory.FullName)))
             {
                 try
                 {
@@ -682,71 +695,65 @@ namespace RX_Explorer
             await CleanUpAndRemoveTabItem(args.Tab).ConfigureAwait(true);
         }
 
-        private void TabViewControl_AddTabButtonClick(TabView sender, object args)
+        private async void TabViewControl_AddTabButtonClick(TabView sender, object args)
         {
-            CreateNewTab(null);
+            await CreateNewTabAsync(null).ConfigureAwait(true);
         }
 
-        private TabViewItem CreateNewTabCore(params string[] PathForNewTab)
+        private async Task<TabViewItem> CreateNewTabCoreAsync(params string[] PathForNewTab)
         {
-            if (Interlocked.Exchange(ref LockResource, 1) == 0)
+            FullTrustProcessController.RequestResizeController(TabViewControl.TabItems.Count + 1);
+
+            Frame frame = new Frame();
+
+            TabViewItem Item = new TabViewItem
             {
-                try
+                IconSource = new SymbolIconSource { Symbol = Symbol.Document },
+                AllowDrop = true,
+                IsDoubleTapEnabled = true,
+                Content = frame
+            };
+            Item.DragEnter += Item_DragEnter;
+            Item.PointerPressed += Item_PointerPressed;
+            Item.DoubleTapped += Item_DoubleTapped;
+
+            List<string> ValidPathArray = new List<string>();
+
+            foreach (string Path in PathForNewTab)
+            {
+                if (!string.IsNullOrWhiteSpace(Path) && await FileSystemStorageItemBase.CheckExist(Path).ConfigureAwait(true))
                 {
-                    FullTrustProcessController.ResizeController(TabViewControl.TabItems.Count + 1);
+                    ValidPathArray.Add(Path);
+                }
+            }
 
-                    Frame frame = new Frame();
+            await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+            {
+                if (AnimationController.Current.IsEnableAnimation)
+                {
+                    frame.Navigate(typeof(ThisPC), new WeakReference<TabViewItem>(Item), new DrillInNavigationTransitionInfo());
+                }
+                else
+                {
+                    frame.Navigate(typeof(ThisPC), new WeakReference<TabViewItem>(Item), new SuppressNavigationTransitionInfo());
+                }
 
-                    TabViewItem Item = new TabViewItem
+                if (ValidPathArray.Count > 0)
+                {
+                    Item.Header = Path.GetFileName(ValidPathArray.Last());
+
+                    if (AnimationController.Current.IsEnableAnimation)
                     {
-                        IconSource = new SymbolIconSource { Symbol = Symbol.Document },
-                        AllowDrop = true,
-                        IsDoubleTapEnabled = true
-                    };
-                    Item.DragEnter += Item_DragEnter;
-                    Item.PointerPressed += Item_PointerPressed;
-                    Item.DoubleTapped += Item_DoubleTapped;
-
-                    IEnumerable<string> ValidPathArray = PathForNewTab.Where((Path) => !string.IsNullOrEmpty(Path) && WIN_Native_API.CheckExist(Path));
-
-                    if (ValidPathArray.Any())
-                    {
-                        frame.Navigate(typeof(ThisPC), new WeakReference<TabViewItem>(Item), new SuppressNavigationTransitionInfo());
-
-                        if (AnimationController.Current.IsEnableAnimation)
-                        {
-                            frame.Navigate(typeof(FileControl), new Tuple<WeakReference<TabViewItem>, string[]>(new WeakReference<TabViewItem>(Item), ValidPathArray.ToArray()), new DrillInNavigationTransitionInfo());
-                        }
-                        else
-                        {
-                            frame.Navigate(typeof(FileControl), new Tuple<WeakReference<TabViewItem>, string[]>(new WeakReference<TabViewItem>(Item), ValidPathArray.ToArray()), new SuppressNavigationTransitionInfo());
-                        }
+                        frame.Navigate(typeof(FileControl), new Tuple<WeakReference<TabViewItem>, string[]>(new WeakReference<TabViewItem>(Item), ValidPathArray.ToArray()), new DrillInNavigationTransitionInfo());
                     }
                     else
                     {
-                        if (AnimationController.Current.IsEnableAnimation)
-                        {
-                            frame.Navigate(typeof(ThisPC), new WeakReference<TabViewItem>(Item), new DrillInNavigationTransitionInfo());
-                        }
-                        else
-                        {
-                            frame.Navigate(typeof(ThisPC), new WeakReference<TabViewItem>(Item), new SuppressNavigationTransitionInfo());
-                        }
+                        frame.Navigate(typeof(FileControl), new Tuple<WeakReference<TabViewItem>, string[]>(new WeakReference<TabViewItem>(Item), ValidPathArray.ToArray()), new SuppressNavigationTransitionInfo());
                     }
-
-                    Item.Content = frame;
-
-                    return Item;
                 }
-                finally
-                {
-                    _ = Interlocked.Exchange(ref LockResource, 0);
-                }
-            }
-            else
-            {
-                return null;
-            }
+            });
+
+            return Item;
         }
 
         private async void Item_DoubleTapped(object sender, Windows.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
@@ -781,18 +788,25 @@ namespace RX_Explorer
                         TabViewControl.SelectedItem = Item;
                     }
                 }
-                else if (e.DataView.Contains(StandardDataFormats.Html))
+                else if (e.DataView.Contains(StandardDataFormats.Text))
                 {
-                    string Html = await e.DataView.GetHtmlFormatAsync();
-                    string Fragment = HtmlFormatHelper.GetStaticFragment(Html);
+                    string XmlText = await e.DataView.GetTextAsync();
 
-                    HtmlDocument Document = new HtmlDocument();
-                    Document.LoadHtml(Fragment);
-                    HtmlNode HeadNode = Document.DocumentNode.SelectSingleNode("/head");
-
-                    if (HeadNode?.InnerText == "RX-Explorer-TabItem")
+                    if (XmlText.Contains("RX-Explorer"))
                     {
-                        e.AcceptedOperation = DataPackageOperation.Link;
+                        XmlDocument Document = new XmlDocument();
+                        Document.LoadXml(XmlText);
+
+                        IXmlNode KindNode = Document.SelectSingleNode("/RX-Explorer/Kind");
+
+                        if (KindNode?.InnerText == "RX-Explorer-TabItem")
+                        {
+                            e.AcceptedOperation = DataPackageOperation.Link;
+                        }
+                    }
+                    else
+                    {
+                        e.AcceptedOperation = DataPackageOperation.None;
                     }
                 }
             }
@@ -838,13 +852,23 @@ namespace RX_Explorer
 
         private void TabViewControl_TabDragStarting(TabView sender, TabViewTabDragStartingEventArgs args)
         {
-            StringBuilder Builder = new StringBuilder("<head>RX-Explorer-TabItem</head>");
+            XmlDocument Document = new XmlDocument();
+
+            XmlElement RootElement = Document.CreateElement("RX-Explorer");
+            Document.AppendChild(RootElement);
+
+            XmlElement KindElement = Document.CreateElement("Kind");
+            KindElement.InnerText = "RX-Explorer-TabItem";
+            RootElement.AppendChild(KindElement);
+
+            XmlElement ItemElement = Document.CreateElement("Item");
+            RootElement.AppendChild(ItemElement);
 
             if (args.Tab.Content is Frame frame)
             {
                 if (frame.Content is ThisPC)
                 {
-                    Builder.Append("<p>ThisPC||</p>");
+                    ItemElement.InnerText = "ThisPC||";
                 }
                 else
                 {
@@ -852,7 +876,7 @@ namespace RX_Explorer
                     {
                         string PathString = string.Join("||", Control.BladeViewer.Items.OfType<Microsoft.Toolkit.Uwp.UI.Controls.BladeItem>().Select((Item) => (Item.Content as FilePresenter)?.CurrentFolder?.Path));
 
-                        Builder.Append($"<p>FileControl||{PathString}</p>");
+                        ItemElement.InnerText = $"FileControl||{PathString}";
                     }
                     else
                     {
@@ -861,7 +885,7 @@ namespace RX_Explorer
                 }
             }
 
-            args.Data.SetHtmlFormat(HtmlFormatHelper.CreateHtmlFormat(Builder.ToString()));
+            args.Data.SetText(Document.GetXml());
         }
 
         private async void TabViewControl_TabDragCompleted(TabView sender, TabViewTabDragCompletedEventArgs args)
@@ -901,19 +925,26 @@ namespace RX_Explorer
 
             try
             {
-                if (e.DataView.Contains(StandardDataFormats.Html))
+                if (e.DataView.Contains(StandardDataFormats.Text))
                 {
-                    string Html = await e.DataView.GetHtmlFormatAsync();
-                    string Fragment = HtmlFormatHelper.GetStaticFragment(Html);
+                    string XmlText = await e.DataView.GetTextAsync();
 
-                    HtmlDocument Document = new HtmlDocument();
-                    Document.LoadHtml(Fragment);
-                    HtmlNode HeadNode = Document.DocumentNode.SelectSingleNode("/head");
-
-                    if (HeadNode?.InnerText == "RX-Explorer-TabItem")
+                    if (XmlText.Contains("RX-Explorer"))
                     {
-                        e.AcceptedOperation = DataPackageOperation.Link;
-                        e.Handled = true;
+                        XmlDocument Document = new XmlDocument();
+                        Document.LoadXml(XmlText);
+
+                        IXmlNode KindNode = Document.SelectSingleNode("/RX-Explorer/Kind");
+
+                        if (KindNode?.InnerText == "RX-Explorer-TabItem")
+                        {
+                            e.AcceptedOperation = DataPackageOperation.Link;
+                            e.Handled = true;
+                        }
+                    }
+                    else
+                    {
+                        e.AcceptedOperation = DataPackageOperation.None;
                     }
                 }
             }
@@ -933,58 +964,60 @@ namespace RX_Explorer
 
             try
             {
-                if (e.DataView.Contains(StandardDataFormats.Html))
+                if (e.DataView.Contains(StandardDataFormats.Text))
                 {
-                    string Html = await e.DataView.GetHtmlFormatAsync();
-                    string Fragment = HtmlFormatHelper.GetStaticFragment(Html);
+                    string XmlText = await e.DataView.GetTextAsync();
 
-                    HtmlDocument Document = new HtmlDocument();
-                    Document.LoadHtml(Fragment);
-                    HtmlNode HeadNode = Document.DocumentNode.SelectSingleNode("/head");
-
-                    if (HeadNode?.InnerText == "RX-Explorer-TabItem")
+                    if (XmlText.Contains("RX-Explorer"))
                     {
-                        HtmlNode BodyNode = Document.DocumentNode.SelectSingleNode("/p");
-                        string[] Split = BodyNode.InnerText.Split("||", StringSplitOptions.RemoveEmptyEntries);
+                        XmlDocument Document = new XmlDocument();
+                        Document.LoadXml(XmlText);
 
-                        int InsertIndex = TabViewControl.TabItems.Count;
+                        IXmlNode KindNode = Document.SelectSingleNode("/RX-Explorer/Kind");
 
-                        for (int i = 0; i < TabViewControl.TabItems.Count; i++)
+                        if (KindNode?.InnerText == "RX-Explorer-TabItem" && Document.SelectSingleNode("/RX-Explorer/Item") is IXmlNode ItemNode)
                         {
-                            TabViewItem Item = TabViewControl.ContainerFromIndex(i) as TabViewItem;
+                            string[] Split = ItemNode.InnerText.Split("||", StringSplitOptions.RemoveEmptyEntries);
 
-                            Windows.Foundation.Point Position = e.GetPosition(Item);
+                            int InsertIndex = TabViewControl.TabItems.Count;
 
-                            if (Position.X < Item.ActualWidth)
+                            for (int i = 0; i < TabViewControl.TabItems.Count; i++)
                             {
-                                if (Position.X < Item.ActualWidth / 2)
+                                TabViewItem Item = TabViewControl.ContainerFromIndex(i) as TabViewItem;
+
+                                Windows.Foundation.Point Position = e.GetPosition(Item);
+
+                                if (Position.X < Item.ActualWidth)
                                 {
-                                    InsertIndex = i;
-                                    break;
-                                }
-                                else
-                                {
-                                    InsertIndex = i + 1;
-                                    break;
+                                    if (Position.X < Item.ActualWidth / 2)
+                                    {
+                                        InsertIndex = i;
+                                        break;
+                                    }
+                                    else
+                                    {
+                                        InsertIndex = i + 1;
+                                        break;
+                                    }
                                 }
                             }
-                        }
 
-                        switch (Split[0])
-                        {
-                            case "ThisPC":
-                                {
-                                    CreateNewTab(InsertIndex);
-                                    break;
-                                }
-                            case "FileControl":
-                                {
-                                    CreateNewTab(InsertIndex, Split.Skip(1).ToArray());
-                                    break;
-                                }
-                        }
+                            switch (Split[0])
+                            {
+                                case "ThisPC":
+                                    {
+                                        await CreateNewTabAsync(InsertIndex).ConfigureAwait(true);
+                                        break;
+                                    }
+                                case "FileControl":
+                                    {
+                                        await CreateNewTabAsync(InsertIndex, Split.Skip(1).ToArray()).ConfigureAwait(true);
+                                        break;
+                                    }
+                            }
 
-                        e.Handled = true;
+                            e.Handled = true;
+                        }
                     }
                 }
             }
@@ -1030,7 +1063,7 @@ namespace RX_Explorer
 
             TabViewControl.TabItems.Remove(Tab);
 
-            FullTrustProcessController.ResizeController(TabViewControl.TabItems.Count);
+            FullTrustProcessController.RequestResizeController(TabViewControl.TabItems.Count);
 
             if (TabViewControl.TabItems.Count == 0)
             {

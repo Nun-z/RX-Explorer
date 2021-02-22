@@ -1,4 +1,83 @@
 ﻿*****
+###What's new in Ver.6.1.0.0
+
+#####Feature update
+
+>#####Expanded the scope of support for network drives
+
+>#####New setting item-"On Startup", now can customize startup behavior
+
+>#####New setting item-"Pops up the confirmation for deletion"
+
+>#####Added support for ARM64 architecture
+
+#####Bug fix
+
+>#####Fixed an issue that may cause the "Open With" dialog to crash
+
+>#####Fixed the problem that a large number of duplicate files may be generated when pasting after using the box selection function to select the file
+
+>#####Fixed the problem that a large number of auxiliary processes may be generated, and updated the scheduler logic
+
+>#####Fixed the problem that a blank page would open when the "Enter" key was pressed on the main interface
+
+>#####Fixed the problem that the auxiliary process may not start correctly after the process hangs
+
+>#####Fixed the problem that when Bing pictures are used in the background, it may prompt to switch the font color when entering the settings page for the first time after startup
+
+>#####Fixed some translation problems
+
+*****
+###What's new in Ver.6.0.6.0
+
+#####Bug fix
+
+>#####Fixed the problem that may cause Everything to not work normally on X64 systems
+
+>#####Fixed the Microsoft Store audit and other minor issues
+
+*****
+###What's new in Ver.6.0.5.0
+
+#####Feature update
+
+>#####Added regular expression filtering to file filtering
+
+>#####New shortcut key Ctrl+Shift+C to quickly copy the path of a file or folder
+
+>#####Improved the ease of use of the Quick Start, now it is easier to add UWP applications
+
+>#####Experimental support the network drive, those who meet the following conditions can access:
+
+>>#####Must be mapped as a network drive
+
+>>#####Network drives cannot be mapped from local folders
+
+#####UI update
+
+>#####Updated the logic of the right-click menu, now all right-click menus can be displayed
+
+>#####"Copy" mode is used by default when dragging files
+
+>#####Added a reminder that the auxiliary process is busy
+
+>#####Text viewer uses GBK as one of the default encoding format to adapt to different text encoding needs
+
+#####Bug fix
+
+>#####Fixed the problem that may prevent access to the folder when the auxiliary process is busy
+
+>#####Fixed some problems related to OpenCV
+
+>#####Fixed the problem of slow startup when running on some devices
+
+>#####Fixed the problem that the lnk file of UWP application could not be loaded correctly 
+
+#####Other updates
+
+>#####Updated UWP framework
+
+*****
 ###What's new in Ver.6.0.1.0
 
 #####Bug fix

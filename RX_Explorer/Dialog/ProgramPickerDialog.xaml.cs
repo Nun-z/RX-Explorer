@@ -38,7 +38,6 @@ namespace RX_Explorer.Dialog
 
         private async void ProgramPickerDialog_Loading(FrameworkElement sender, object args)
         {
-            LoadingText.Text = Globalization.GetString("Progress_Tip_Loading");
             LoadingText.Visibility = Visibility.Visible;
             WholeArea.Visibility = Visibility.Collapsed;
 
@@ -93,7 +92,7 @@ namespace RX_Explorer.Dialog
             {
                 try
                 {
-                    if (WIN_Native_API.CheckExist(Package.ExecutablePath))
+                    if (await FileSystemStorageItemBase.CheckExist(Package.ExecutablePath).ConfigureAwait(true))
                     {
                         StorageFile ExecuteFile = await StorageFile.GetFileFromPathAsync(Package.ExecutablePath);
 

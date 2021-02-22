@@ -13,6 +13,7 @@ using Windows.ApplicationModel;
 using Windows.ApplicationModel.AppService;
 using Windows.Foundation.Collections;
 using Windows.Storage;
+using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 
 namespace RX_Explorer.Class
@@ -38,7 +39,7 @@ namespace RX_Explorer.Class
 
         private const string ExecuteType_RestoreWinE = "Execute_Restore_Win_E";
 
-        private const string ExecuteType_HyperlinkInfo = "Execute_GetHyperlinkInfo";
+        private const string ExecuteType_GetLnkData = "Execute_GetLnkData";
 
         private const string ExecuteType_Rename = "Execute_Rename";
 
@@ -80,6 +81,22 @@ namespace RX_Explorer.Class
 
         private const string ExecuteType_GetMIMEContentType = "Execute_GetMIMEContentType";
 
+        private const string ExecuteType_GetAllInstalledApplication = "Execute_GetAllInstalledApplication";
+
+        private const string ExecuteType_CheckPackageFamilyNameExist = "Execute_CheckPackageFamilyNameExist";
+
+        private const string ExecuteType_GetInstalledApplication = "Execute_GetInstalledApplication";
+
+        private const string ExecuteType_LaunchUWPLnkFile = "Execute_LaunchUWPLnkFile";
+
+        private readonly static Thread DispatcherThread = new Thread(DispatcherMethod)
+        {
+            IsBackground = true,
+            Priority = ThreadPriority.Normal
+        };
+
+        private static readonly AutoResetEvent DispatcherSleepLocker = new AutoResetEvent(false);
+
         private const ushort DynamicBackupProcessNum = 1;
 
         private readonly int CurrentProcessId;
@@ -90,143 +107,41 @@ namespace RX_Explorer.Class
 
         private bool IsDisposed;
 
-        private static readonly object Locker = new object();
-
         public bool IsAnyActionExcutingInCurrentController { get; private set; }
 
         public static bool IsAnyActionExcutingInAllController
         {
             get
             {
-                return AvailableControllerQueue.Any((Controller) => Controller.Controller.IsAnyActionExcutingInCurrentController);
+                return AvailableControllerQueue.Any((Controller) => Controller.IsAnyActionExcutingInCurrentController);
             }
         }
 
         private PipeLineController PipeController;
 
-        private static readonly ConcurrentQueue<ExclusiveUsage> AvailableControllerQueue = new ConcurrentQueue<ExclusiveUsage>();
+        private static readonly ConcurrentQueue<FullTrustProcessController> AvailableControllerQueue = new ConcurrentQueue<FullTrustProcessController>();
+
+        private static readonly ConcurrentQueue<TaskCompletionSource<ExclusiveUsage>> WaitingTaskQueue = new ConcurrentQueue<TaskCompletionSource<ExclusiveUsage>>();
 
         private static volatile int CurrentRunningControllerNum;
 
         private static event EventHandler<FullTrustProcessController> ExclusiveDisposed;
 
+        public static event EventHandler<bool> CurrentBusyStatus;
+
         static FullTrustProcessController()
         {
+            DispatcherThread.Start();
             ExclusiveDisposed += FullTrustProcessController_ExclusiveDisposed;
-        }
-
-        private async static void FullTrustProcessController_ExclusiveDisposed(object sender, FullTrustProcessController e)
-        {
-            if (e.IsDisposed)
-            {
-                FullTrustProcessController Controller = new FullTrustProcessController();
-                await Controller.ConnectRemoteAsync().ConfigureAwait(true);
-                AvailableControllerQueue.Enqueue(new ExclusiveUsage(Controller));
-            }
-            else
-            {
-                AvailableControllerQueue.Enqueue(new ExclusiveUsage(e));
-            }
-        }
-
-        public static void ResizeController(int ResizeTarget)
-        {
-            _ = Task.Run(() =>
-            {
-                try
-                {
-
-                    ResizeTarget += DynamicBackupProcessNum;
-
-                    if (CurrentRunningControllerNum > ResizeTarget)
-                    {
-                        do
-                        {
-                            if (AvailableControllerQueue.TryDequeue(out ExclusiveUsage Usage))
-                            {
-                                Usage.Controller.Dispose();
-                            }
-                            else
-                            {
-                                if (!SpinWait.SpinUntil(() => !AvailableControllerQueue.IsEmpty, 5000))
-                                {
-                                    break;
-                                }
-                            }
-                        }
-                        while (CurrentRunningControllerNum > ResizeTarget);
-                    }
-                    else
-                    {
-                        lock (Locker)
-                        {
-                            if (CurrentRunningControllerNum < ResizeTarget)
-                            {
-                                do
-                                {
-                                    FullTrustProcessController Controller = new FullTrustProcessController();
-                                    Controller.ConnectRemoteAsync().GetAwaiter().GetResult();
-                                    AvailableControllerQueue.Enqueue(new ExclusiveUsage(Controller));
-                                }
-                                while (CurrentRunningControllerNum < ResizeTarget);
-                            }
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    LogTracer.Log(ex, "An exception was threw when maintance FullTrustProcessController");
-                }
-            });
-        }
-
-        public static Task<ExclusiveUsage> GetAvailableController()
-        {
-            return Task.Run(() =>
-            {
-                while (true)
-                {
-                    if (AvailableControllerQueue.TryDequeue(out ExclusiveUsage Result))
-                    {
-                        if (Result.Controller.IsDisposed)
-                        {
-                            FullTrustProcessController Controller = new FullTrustProcessController();
-                            Controller.ConnectRemoteAsync().GetAwaiter().GetResult();
-                            return new ExclusiveUsage(Controller);
-                        }
-                        else
-                        {
-                            return Result;
-                        }
-                    }
-                    else
-                    {
-                        if (CurrentRunningControllerNum > 0)
-                        {
-                            SpinWait.SpinUntil(() => !AvailableControllerQueue.IsEmpty);
-                        }
-                        else
-                        {
-                            lock (Locker)
-                            {
-                                if (CurrentRunningControllerNum == 0)
-                                {
-                                    FullTrustProcessController Controller = new FullTrustProcessController();
-                                    Controller.ConnectRemoteAsync().GetAwaiter().GetResult();
-                                    AvailableControllerQueue.Enqueue(new ExclusiveUsage(Controller));
-                                }
-                            }
-                        }
-                    }
-                }
-            });
         }
 
         private FullTrustProcessController()
         {
+            Interlocked.Increment(ref CurrentRunningControllerNum);
+
             PipeController = new PipeLineController(this);
 
-            Interlocked.Increment(ref CurrentRunningControllerNum);
+            Application.Current.Suspending += Current_Suspending;
 
             using (Process CurrentProcess = Process.GetCurrentProcess())
             {
@@ -234,25 +149,166 @@ namespace RX_Explorer.Class
             }
         }
 
+        private void Current_Suspending(object sender, SuspendingEventArgs e)
+        {
+            LogTracer.Log("RX-Explorer enter suspend state, dispose this instance");
+            Dispose();
+        }
+
+        private static async void FullTrustProcessController_ExclusiveDisposed(object sender, FullTrustProcessController e)
+        {
+            if (e.IsDisposed)
+            {
+                FullTrustProcessController Controller = await CreateAsync().ConfigureAwait(true);
+                AvailableControllerQueue.Enqueue(Controller);
+            }
+            else
+            {
+                AvailableControllerQueue.Enqueue(e);
+            }
+        }
+
+        private static void DispatcherMethod()
+        {
+            while (true)
+            {
+                if (WaitingTaskQueue.IsEmpty)
+                {
+                    DispatcherSleepLocker.WaitOne();
+                }
+
+                while (WaitingTaskQueue.TryDequeue(out TaskCompletionSource<ExclusiveUsage> CompletionSource))
+                {
+                    while (true)
+                    {
+                        if (AvailableControllerQueue.TryDequeue(out FullTrustProcessController Controller))
+                        {
+                            if (Controller.IsDisposed)
+                            {
+                                CompletionSource.SetResult(new ExclusiveUsage(CreateAsync().GetAwaiter().GetResult()));
+                            }
+                            else
+                            {
+                                CompletionSource.SetResult(new ExclusiveUsage(Controller));
+                            }
+
+                            break;
+                        }
+                        else
+                        {
+                            if (CurrentRunningControllerNum > 0)
+                            {
+                                if (!SpinWait.SpinUntil(() => !AvailableControllerQueue.IsEmpty, 5000))
+                                {
+                                    CurrentBusyStatus?.Invoke(null, true);
+
+                                    SpinWait.SpinUntil(() => !AvailableControllerQueue.IsEmpty);
+
+                                    CurrentBusyStatus?.Invoke(null, false);
+                                }
+                            }
+                            else
+                            {
+                                ResizeController(1);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        public static void RequestResizeController(int RequestedTarget)
+        {
+            _ = Task.Run(() =>
+            {
+                ResizeController(RequestedTarget);
+            });
+        }
+
+        private static void ResizeController(int RequestedTarget)
+        {
+            try
+            {
+                RequestedTarget += DynamicBackupProcessNum;
+
+                while (CurrentRunningControllerNum > RequestedTarget)
+                {
+                    if (AvailableControllerQueue.TryDequeue(out FullTrustProcessController Controller))
+                    {
+                        Controller.Dispose();
+                    }
+                    else
+                    {
+                        if (!SpinWait.SpinUntil(() => !AvailableControllerQueue.IsEmpty, 2000))
+                        {
+                            break;
+                        }
+                    }
+                }
+
+                while (CurrentRunningControllerNum < RequestedTarget)
+                {
+                    AvailableControllerQueue.Enqueue(CreateAsync().GetAwaiter().GetResult());
+                }
+            }
+            catch (Exception ex)
+            {
+                LogTracer.Log(ex, "An exception was threw when maintance FullTrustProcessController");
+            }
+        }
+
+
+        public static Task<ExclusiveUsage> GetAvailableController()
+        {
+            TaskCompletionSource<ExclusiveUsage> CompletionSource = new TaskCompletionSource<ExclusiveUsage>();
+
+            WaitingTaskQueue.Enqueue(CompletionSource);
+
+            if (DispatcherThread.ThreadState.HasFlag(System.Threading.ThreadState.WaitSleepJoin))
+            {
+                DispatcherSleepLocker.Set();
+            }
+
+            return CompletionSource.Task;
+        }
+
+        private static async Task<FullTrustProcessController> CreateAsync()
+        {
+            FullTrustProcessController Controller = new FullTrustProcessController();
+            await FullTrustProcessLauncher.LaunchFullTrustProcessForCurrentAppAsync();
+            await Controller.ConnectRemoteAsync().ConfigureAwait(false);
+            return Controller;
+        }
+
         private async void Connection_RequestReceived(AppServiceConnection sender, AppServiceRequestReceivedEventArgs args)
         {
             AppServiceDeferral Deferral = args.GetDeferral();
 
-            switch (args.Request.Message["ExecuteType"])
+            try
             {
-                case "Identity":
-                    {
-                        await args.Request.SendResponseAsync(new ValueSet { { "Identity", "UWP" } });
-                        break;
-                    }
-                case "FullTrustProcessExited":
-                    {
-                        Dispose();
-                        break;
-                    }
+                switch (args.Request.Message["ExecuteType"])
+                {
+                    case "Identity":
+                        {
+                            await args.Request.SendResponseAsync(new ValueSet { { "Identity", "UWP" } });
+                            break;
+                        }
+                    case "FullTrustProcessExited":
+                        {
+                            LogTracer.Log("FullTrustProcess exited unexpected, dispose this instance");
+                            Dispose();
+                            break;
+                        }
+                }
             }
-
-            Deferral.Complete();
+            catch (Exception ex)
+            {
+                LogTracer.Log(ex);
+            }
+            finally
+            {
+                Deferral.Complete();
+            }
         }
 
         private async Task<bool> ConnectRemoteAsync()
@@ -275,13 +331,17 @@ namespace RX_Explorer.Class
                     };
 
                     Connection.RequestReceived += Connection_RequestReceived;
+                    Connection.ServiceClosed += Connection_ServiceClosed;
 
-                    if ((await Connection.OpenAsync()) != AppServiceConnectionStatus.Success)
+                    if ((await Connection.OpenAsync()) == AppServiceConnectionStatus.Success)
+                    {
+                        //Do not remove this delay, leave some time for "Identity" call from AppService
+                        await Task.Delay(500).ConfigureAwait(false);
+                    }
+                    else
                     {
                         return IsConnected = false;
                     }
-
-                    await FullTrustProcessLauncher.LaunchFullTrustProcessForCurrentAppAsync();
                 }
 
                 for (int Count = 0; Count < 3; Count++)
@@ -310,7 +370,9 @@ namespace RX_Explorer.Class
                     }
                 }
 
-                LogTracer.Log("Connect to FullTrustProcess failed after retrying 3 times.");
+                LogTracer.Log("Connect to FullTrustProcess failed after retrying 3 times. Dispose this instance");
+
+                Dispose();
 
                 return IsConnected = false;
             }
@@ -319,6 +381,12 @@ namespace RX_Explorer.Class
                 LogTracer.Log(ex, $"An unexpected error was threw in {nameof(ConnectRemoteAsync)}");
                 return IsConnected = false;
             }
+        }
+
+        private void Connection_ServiceClosed(AppServiceConnection sender, AppServiceClosedEventArgs args)
+        {
+            LogTracer.Log("AppServiceConnection closed, dispose this instance");
+            Dispose();
         }
 
         public async Task<string> GetMIMEContentType(string Path)
@@ -498,7 +566,237 @@ namespace RX_Explorer.Class
             }
         }
 
-        public async Task<HiddenItemPackage> GetHiddenItemInfoAsync(string Path)
+        public async Task<bool> LaunchUWPLnkAsync(string PackageFamilyName)
+        {
+            try
+            {
+                IsAnyActionExcutingInCurrentController = true;
+
+                if (await ConnectRemoteAsync().ConfigureAwait(true))
+                {
+                    ValueSet Value = new ValueSet
+                    {
+                        {"ExecuteType", ExecuteType_LaunchUWPLnkFile},
+                        {"PackageFamilyName", PackageFamilyName }
+                    };
+
+                    AppServiceResponse Response = await Connection.SendMessageAsync(Value);
+
+                    if (Response.Status == AppServiceResponseStatus.Success)
+                    {
+                        if (Response.Message.TryGetValue("Success", out object Result))
+                        {
+                            return Convert.ToBoolean(Result);
+                        }
+                        else
+                        {
+                            if (Response.Message.TryGetValue("Error", out object ErrorMessage))
+                            {
+                                LogTracer.Log($"An unexpected error was threw in {nameof(LaunchUWPLnkAsync)}, message: {ErrorMessage}");
+                            }
+
+                            return false;
+                        }
+                    }
+                    else
+                    {
+                        LogTracer.Log($"AppServiceResponse in {nameof(LaunchUWPLnkAsync)} return an invalid status. Status: {Enum.GetName(typeof(AppServiceResponseStatus), Response.Status)}");
+                        return false;
+                    }
+                }
+                else
+                {
+                    LogTracer.Log($"{nameof(LaunchUWPLnkAsync)}: Failed to connect AppService ");
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                LogTracer.Log(ex, $"{ nameof(LaunchUWPLnkAsync)} throw an error");
+                return false;
+            }
+            finally
+            {
+                IsAnyActionExcutingInCurrentController = false;
+            }
+        }
+
+        public async Task<bool> CheckIfPackageFamilyNameExist(string PackageFamilyName)
+        {
+            try
+            {
+                IsAnyActionExcutingInCurrentController = true;
+
+                if (await ConnectRemoteAsync().ConfigureAwait(true))
+                {
+                    ValueSet Value = new ValueSet
+                    {
+                        {"ExecuteType", ExecuteType_CheckPackageFamilyNameExist},
+                        {"PackageFamilyName", PackageFamilyName }
+                    };
+
+                    AppServiceResponse Response = await Connection.SendMessageAsync(Value);
+
+                    if (Response.Status == AppServiceResponseStatus.Success)
+                    {
+                        if (Response.Message.TryGetValue("Success", out object Result))
+                        {
+                            return Convert.ToBoolean(Result);
+                        }
+                        else
+                        {
+                            if (Response.Message.TryGetValue("Error", out object ErrorMessage))
+                            {
+                                LogTracer.Log($"An unexpected error was threw in {nameof(CheckIfPackageFamilyNameExist)}, message: {ErrorMessage}");
+                            }
+
+                            return false;
+                        }
+                    }
+                    else
+                    {
+                        LogTracer.Log($"AppServiceResponse in {nameof(CheckIfPackageFamilyNameExist)} return an invalid status. Status: {Enum.GetName(typeof(AppServiceResponseStatus), Response.Status)}");
+                        return false;
+                    }
+                }
+                else
+                {
+                    LogTracer.Log($"{nameof(CheckIfPackageFamilyNameExist)}: Failed to connect AppService ");
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                LogTracer.Log(ex, $"{ nameof(CheckIfPackageFamilyNameExist)} throw an error");
+                return false;
+            }
+            finally
+            {
+                IsAnyActionExcutingInCurrentController = false;
+            }
+        }
+
+        public async Task<InstalledApplication> GetInstalledApplicationAsync(string PackageFamilyName)
+        {
+            try
+            {
+                IsAnyActionExcutingInCurrentController = true;
+
+                if (await ConnectRemoteAsync().ConfigureAwait(true))
+                {
+                    ValueSet Value = new ValueSet
+                    {
+                        {"ExecuteType", ExecuteType_GetInstalledApplication},
+                        {"PackageFamilyName", PackageFamilyName }
+                    };
+
+                    AppServiceResponse Response = await Connection.SendMessageAsync(Value);
+
+                    if (Response.Status == AppServiceResponseStatus.Success)
+                    {
+                        if (Response.Message.TryGetValue("Success", out object Result))
+                        {
+                            InstalledApplicationPackage Pack = JsonSerializer.Deserialize<InstalledApplicationPackage>(Convert.ToString(Result));
+
+                            return await InstalledApplication.CreateAsync(Pack).ConfigureAwait(true);
+                        }
+                        else
+                        {
+                            if (Response.Message.TryGetValue("Error", out object ErrorMessage))
+                            {
+                                LogTracer.Log($"An unexpected error was threw in {nameof(GetInstalledApplicationAsync)}, message: {ErrorMessage}");
+                            }
+
+                            return null;
+                        }
+                    }
+                    else
+                    {
+                        LogTracer.Log($"AppServiceResponse in {nameof(GetInstalledApplicationAsync)} return an invalid status. Status: {Enum.GetName(typeof(AppServiceResponseStatus), Response.Status)}");
+                        return null;
+                    }
+                }
+                else
+                {
+                    LogTracer.Log($"{nameof(GetInstalledApplicationAsync)}: Failed to connect AppService ");
+                    return null;
+                }
+            }
+            catch (Exception ex)
+            {
+                LogTracer.Log(ex, $"{ nameof(GetInstalledApplicationAsync)} throw an error");
+                return null;
+            }
+            finally
+            {
+                IsAnyActionExcutingInCurrentController = false;
+            }
+        }
+
+
+        public async Task<InstalledApplication[]> GetAllInstalledApplicationAsync()
+        {
+            try
+            {
+                IsAnyActionExcutingInCurrentController = true;
+
+                if (await ConnectRemoteAsync().ConfigureAwait(true))
+                {
+                    ValueSet Value = new ValueSet
+                    {
+                        {"ExecuteType", ExecuteType_GetAllInstalledApplication}
+                    };
+
+                    AppServiceResponse Response = await Connection.SendMessageAsync(Value);
+
+                    if (Response.Status == AppServiceResponseStatus.Success)
+                    {
+                        if (Response.Message.TryGetValue("Success", out object Result))
+                        {
+                            List<InstalledApplication> PackageList = new List<InstalledApplication>();
+
+                            foreach (InstalledApplicationPackage Pack in JsonSerializer.Deserialize<InstalledApplicationPackage[]>(Convert.ToString(Result)))
+                            {
+                                PackageList.Add(await InstalledApplication.CreateAsync(Pack).ConfigureAwait(true));
+                            }
+
+                            return PackageList.ToArray();
+                        }
+                        else
+                        {
+                            if (Response.Message.TryGetValue("Error", out object ErrorMessage))
+                            {
+                                LogTracer.Log($"An unexpected error was threw in {nameof(GetAllInstalledApplicationAsync)}, message: {ErrorMessage}");
+                            }
+
+                            return Array.Empty<InstalledApplication>();
+                        }
+                    }
+                    else
+                    {
+                        LogTracer.Log($"AppServiceResponse in {nameof(GetAllInstalledApplicationAsync)} return an invalid status. Status: {Enum.GetName(typeof(AppServiceResponseStatus), Response.Status)}");
+                        return Array.Empty<InstalledApplication>();
+                    }
+                }
+                else
+                {
+                    LogTracer.Log($"{nameof(GetAllInstalledApplicationAsync)}: Failed to connect AppService ");
+                    return Array.Empty<InstalledApplication>();
+                }
+            }
+            catch (Exception ex)
+            {
+                LogTracer.Log(ex, $"{ nameof(GetAllInstalledApplicationAsync)} throw an error");
+                return Array.Empty<InstalledApplication>();
+            }
+            finally
+            {
+                IsAnyActionExcutingInCurrentController = false;
+            }
+        }
+
+
+        public async Task<HiddenItemPackage> GetHiddenItemDataAsync(string Path)
         {
             try
             {
@@ -526,7 +824,7 @@ namespace RX_Explorer.Class
                             {
                                 if (Response.Message.TryGetValue("Error", out object ErrorMessage))
                                 {
-                                    LogTracer.Log($"An unexpected error was threw in {nameof(GetHiddenItemInfoAsync)}, message: {ErrorMessage}");
+                                    LogTracer.Log($"An unexpected error was threw in {nameof(GetHiddenItemDataAsync)}, message: {ErrorMessage}");
                                 }
 
                                 return null;
@@ -534,13 +832,13 @@ namespace RX_Explorer.Class
                         }
                         else
                         {
-                            LogTracer.Log($"AppServiceResponse in {nameof(GetHiddenItemInfoAsync)} return an invalid status. Status: {Enum.GetName(typeof(AppServiceResponseStatus), Response.Status)}");
+                            LogTracer.Log($"AppServiceResponse in {nameof(GetHiddenItemDataAsync)} return an invalid status. Status: {Enum.GetName(typeof(AppServiceResponseStatus), Response.Status)}");
                             return null;
                         }
                     }
                     else
                     {
-                        LogTracer.Log($"{nameof(GetHiddenItemInfoAsync)}: Failed to connect AppService ");
+                        LogTracer.Log($"{nameof(GetHiddenItemDataAsync)}: Failed to connect AppService ");
                         return null;
                     }
                 }
@@ -551,7 +849,7 @@ namespace RX_Explorer.Class
             }
             catch (Exception ex)
             {
-                LogTracer.Log(ex, $"{ nameof(GetHiddenItemInfoAsync)} throw an error");
+                LogTracer.Log(ex, $"{ nameof(GetHiddenItemDataAsync)} throw an error");
                 return null;
             }
             finally
@@ -684,7 +982,7 @@ namespace RX_Explorer.Class
                     ValueSet Value = new ValueSet
                     {
                         {"ExecuteType", ExecuteType_CreateLink},
-                        {"DataPackage", JsonSerializer.Serialize(new HyperlinkPackage(LinkPath, LinkTarget, LinkArgument, LinkDesc, false)) }
+                        {"DataPackage", JsonSerializer.Serialize(new HyperlinkPackage(LinkPath, LinkTarget, LinkDesc, false, null, LinkArgument)) }
                     };
 
                     AppServiceResponse Response = await Connection.SendMessageAsync(Value);
@@ -839,7 +1137,7 @@ namespace RX_Explorer.Class
             }
         }
 
-        public async Task<HyperlinkPackage> GetHyperlinkRelatedInformationAsync(string Path)
+        public async Task<HyperlinkPackage> GetLnkDataAsync(string Path)
         {
             try
             {
@@ -849,7 +1147,7 @@ namespace RX_Explorer.Class
                 {
                     ValueSet Value = new ValueSet
                     {
-                        {"ExecuteType", ExecuteType_HyperlinkInfo},
+                        {"ExecuteType", ExecuteType_GetLnkData},
                         {"ExecutePath", Path}
                     };
 
@@ -865,7 +1163,7 @@ namespace RX_Explorer.Class
                         {
                             if (Response.Message.TryGetValue("Error", out object ErrorMessage))
                             {
-                                LogTracer.Log($"An unexpected error was threw in {nameof(GetHyperlinkRelatedInformationAsync)}, message: {ErrorMessage}");
+                                LogTracer.Log($"An unexpected error was threw in {nameof(GetLnkDataAsync)}, message: {ErrorMessage}");
                             }
 
                             throw new InvalidOperationException();
@@ -873,14 +1171,14 @@ namespace RX_Explorer.Class
                     }
                     else
                     {
-                        LogTracer.Log($"AppServiceResponse in {nameof(GetHyperlinkRelatedInformationAsync)} return an invalid status. Status: {Enum.GetName(typeof(AppServiceResponseStatus), Response.Status)}");
+                        LogTracer.Log($"AppServiceResponse in {nameof(GetLnkDataAsync)} return an invalid status. Status: {Enum.GetName(typeof(AppServiceResponseStatus), Response.Status)}");
 
                         throw new NoResponseException();
                     }
                 }
                 else
                 {
-                    LogTracer.Log($"{nameof(GetHyperlinkRelatedInformationAsync)}: Failed to connect AppService");
+                    LogTracer.Log($"{nameof(GetLnkDataAsync)}: Failed to connect AppService");
                     throw new NoResponseException();
                 }
             }
@@ -1537,7 +1835,7 @@ namespace RX_Explorer.Class
                             {
                                 string TargetPath = Path.Combine(DestinationPath, Path.GetFileName(SourcePath));
 
-                                if (WIN_Native_API.CheckExist(TargetPath))
+                                if (await FileSystemStorageItemBase.CheckExist(TargetPath).ConfigureAwait(true))
                                 {
                                     QueueContentDialog Dialog = new QueueContentDialog
                                     {
@@ -1696,7 +1994,7 @@ namespace RX_Explorer.Class
                                 {
                                     string TargetPath = Path.Combine(DestinationPath, Path.GetFileName(SourcePath));
 
-                                    if (WIN_Native_API.CheckExist(TargetPath))
+                                    if (await FileSystemStorageItemBase.CheckExist(TargetPath).ConfigureAwait(true))
                                     {
                                         QueueContentDialog Dialog = new QueueContentDialog
                                         {
@@ -2007,25 +2305,32 @@ namespace RX_Explorer.Class
 
         public void Dispose()
         {
-            GC.SuppressFinalize(this);
-
-            IsConnected = false;
-            IsDisposed = true;
-
-            if (Connection != null)
+            if (!IsDisposed)
             {
-                Connection.RequestReceived -= Connection_RequestReceived;
-                Connection.Dispose();
-                Connection = null;
-            }
+                IsDisposed = true;
+                IsConnected = false;
 
-            if (PipeController != null)
-            {
-                PipeController.Dispose();
-                PipeController = null;
-            }
+                GC.SuppressFinalize(this);
 
-            Interlocked.Decrement(ref CurrentRunningControllerNum);
+                Interlocked.Decrement(ref CurrentRunningControllerNum);
+
+                Application.Current.Suspending -= Current_Suspending;
+
+                if (Connection != null)
+                {
+                    Connection.RequestReceived -= Connection_RequestReceived;
+                    Connection.ServiceClosed -= Connection_ServiceClosed;
+
+                    Connection.Dispose();
+                    Connection = null;
+                }
+
+                if (PipeController != null)
+                {
+                    PipeController.Dispose();
+                    PipeController = null;
+                }
+            }
         }
 
         ~FullTrustProcessController()

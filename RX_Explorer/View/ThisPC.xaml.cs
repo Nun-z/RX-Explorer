@@ -239,45 +239,63 @@ namespace RX_Explorer
             {
                 if ((sender as GridView).Name == nameof(QuickStartGridView))
                 {
-                    Uri Ur = new Uri(Item.Protocol);
-
-                    if (Ur.IsFile)
+                    if (Uri.TryCreate(Item.Protocol, UriKind.Absolute, out Uri Ur))
                     {
-                        if (WIN_Native_API.CheckExist(Item.Protocol))
+                        if (Ur.IsFile)
                         {
-                            using (FullTrustProcessController.ExclusiveUsage Exclusive = await FullTrustProcessController.GetAvailableController())
+                            if (await FileSystemStorageItemBase.CheckExist(Item.Protocol).ConfigureAwait(true))
                             {
-                                try
+                                using (FullTrustProcessController.ExclusiveUsage Exclusive = await FullTrustProcessController.GetAvailableController())
                                 {
-                                    if (Path.GetExtension(Item.Protocol).ToLower() == ".msc")
+                                    try
                                     {
-                                        await Exclusive.Controller.RunAsync("powershell.exe", false, true, false, "-Command", Item.Protocol).ConfigureAwait(true);
+                                        if (Path.GetExtension(Item.Protocol).ToLower() == ".msc")
+                                        {
+                                            await Exclusive.Controller.RunAsync("powershell.exe", false, true, false, "-Command", Item.Protocol).ConfigureAwait(true);
+                                        }
+                                        else
+                                        {
+                                            await Exclusive.Controller.RunAsync(Item.Protocol).ConfigureAwait(true);
+                                        }
                                     }
-                                    else
+                                    catch (Exception ex)
                                     {
-                                        await Exclusive.Controller.RunAsync(Item.Protocol).ConfigureAwait(true);
+                                        LogTracer.Log(ex, "Could not execute program in quick start");
                                     }
                                 }
-                                catch (Exception ex)
+                            }
+                            else
+                            {
+                                QueueContentDialog Dialog = new QueueContentDialog
                                 {
-                                    LogTracer.Log(ex, "Could not execute program in quick start");
-                                }
+                                    Title = Globalization.GetString("Common_Dialog_ErrorTitle"),
+                                    Content = Globalization.GetString("QueueDialog_ApplicationNotFound_Content"),
+                                    CloseButtonText = Globalization.GetString("Common_Dialog_CloseButton")
+                                };
+                                _ = await Dialog.ShowAsync().ConfigureAwait(true);
                             }
                         }
                         else
                         {
-                            QueueContentDialog Dialog = new QueueContentDialog
-                            {
-                                Title = Globalization.GetString("Common_Dialog_ErrorTitle"),
-                                Content = Globalization.GetString("QueueDialog_ApplicationNotFound_Content"),
-                                CloseButtonText = Globalization.GetString("Common_Dialog_CloseButton")
-                            };
-                            _ = await Dialog.ShowAsync().ConfigureAwait(true);
+                            await Launcher.LaunchUriAsync(Ur);
                         }
                     }
                     else
                     {
-                        await Launcher.LaunchUriAsync(Ur);
+                        using (FullTrustProcessController.ExclusiveUsage Exclusive = await FullTrustProcessController.GetAvailableController())
+                        {
+                            if (!await Exclusive.Controller.LaunchUWPLnkAsync(Item.Protocol).ConfigureAwait(true))
+                            {
+                                QueueContentDialog Dialog = new QueueContentDialog
+                                {
+                                    Title = Globalization.GetString("Common_Dialog_ErrorTitle"),
+                                    Content = Globalization.GetString("QueueDialog_LaunchFailed_Content"),
+                                    CloseButtonText = Globalization.GetString("Common_Dialog_CloseButton")
+                                };
+
+                                _ = await Dialog.ShowAsync().ConfigureAwait(true);
+                            }
+                        }
                     }
                 }
                 else
@@ -525,7 +543,7 @@ namespace RX_Explorer
                 {
                     CommonAccessCollection.HardDeviceList.Clear();
 
-                    foreach (DriveInfo Drive in DriveInfo.GetDrives().Where((Drives) => Drives.DriveType == DriveType.Fixed || Drives.DriveType == DriveType.Removable)
+                    foreach (DriveInfo Drive in DriveInfo.GetDrives().Where((Drives) => Drives.DriveType == DriveType.Fixed || Drives.DriveType == DriveType.Removable || Drives.DriveType == DriveType.Network)
                                                                      .Where((NewItem) => CommonAccessCollection.HardDeviceList.All((Item) => Item.Folder.Path != NewItem.RootDirectory.FullName)))
                     {
                         try
@@ -673,7 +691,7 @@ namespace RX_Explorer
 
             if (Device != null)
             {
-                if (Device.Path.Equals(Path.GetPathRoot(Device.Path), StringComparison.OrdinalIgnoreCase) && DriveInfo.GetDrives().Where((Drive) => Drive.DriveType == DriveType.Fixed || Drive.DriveType == DriveType.Removable).Any((Item) => Item.RootDirectory.FullName == Device.Path))
+                if (Device.Path.Equals(Path.GetPathRoot(Device.Path), StringComparison.OrdinalIgnoreCase) && DriveInfo.GetDrives().Where((Drive) => Drive.DriveType == DriveType.Fixed || Drive.DriveType == DriveType.Removable || Drive.DriveType == DriveType.Network).Any((Item) => Item.RootDirectory.FullName == Device.Path))
                 {
                     if (CommonAccessCollection.HardDeviceList.All((Item) => Item.Folder.Path != Device.Path))
                     {

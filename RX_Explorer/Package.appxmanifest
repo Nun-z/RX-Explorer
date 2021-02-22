@@ -16,7 +16,7 @@
   <Identity
     Name="38290N-Soft.RXFileExplorer"
     Publisher="CN=DBEECBAB-E09C-4284-B5EA-80CDCB791506"
-    Version="6.0.1.0" />
+    Version="6.1.0.0" />
 
   <mp:PhoneIdentity PhoneProductId="6dc400e0-9ff9-4817-888c-4433f9e26a2c" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 

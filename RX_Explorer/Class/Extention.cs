@@ -53,7 +53,7 @@ namespace RX_Explorer.Class
             return !IntersectBounds.IsEmpty && IntersectBounds.Width > 0 && IntersectBounds.Height > 0;
         }
 
-        public static async Task SetCommandBarFlyoutWithExtraContextMenuItems(this ListViewBase ListControl, CommandBarFlyout Flyout, Point? ShowAt = null)
+        public static async Task SetCommandBarFlyoutWithExtraContextMenuItems(this ListViewBase ListControl, CommandBarFlyout Flyout, Point ShowAt)
         {
             if (Flyout == null)
             {
@@ -91,8 +91,6 @@ namespace RX_Explorer.Class
                 }
                 else
                 {
-                    ListControl.ContextFlyout = null;
-
                     string SelectedPath;
 
                     if (ListControl.SelectedItems.Count <= 1)
@@ -207,26 +205,19 @@ namespace RX_Explorer.Class
             }
             finally
             {
-                if (ShowAt != null)
+                try
                 {
-                    try
+                    FlyoutShowOptions Option = new FlyoutShowOptions
                     {
-                        FlyoutShowOptions Option = new FlyoutShowOptions
-                        {
-                            Position = ShowAt,
-                            Placement = FlyoutPlacementMode.RightEdgeAlignedTop
-                        };
+                        Position = ShowAt,
+                        Placement = FlyoutPlacementMode.RightEdgeAlignedTop
+                    };
 
-                        Flyout?.ShowAt(ListControl, Option);
-                    }
-                    catch (Exception ex)
-                    {
-                        LogTracer.Log(ex, "An exception was threw when trying show flyout");
-                    }
+                    Flyout?.ShowAt(ListControl, Option);
                 }
-                else
+                catch (Exception ex)
                 {
-                    ListControl.ContextFlyout = Flyout;
+                    LogTracer.Log(ex, "An exception was threw when trying show flyout");
                 }
             }
         }
@@ -263,26 +254,23 @@ namespace RX_Explorer.Class
             {
                 int MaxLength = Input.Select((Item) => (GetString(Item)?.Length) ?? 0).Max();
 
+                IEnumerable<(T OriginItem, string SortString)> Collection = Input.Select(Item => (
+                    OriginItem: Item,
+                    SortString: Regex.Replace(GetString(Item) ?? string.Empty, @"(\d+)|(\D+)", Eva => Eva.Value.PadLeft(MaxLength, char.IsDigit(Eva.Value[0]) ? ' ' : '\xffff'))
+                ));
+
                 if (Direction == SortDirection.Ascending)
                 {
-                    return Input.Select(Item => new
-                    {
-                        OriginItem = Item,
-                        SortString = Regex.Replace(GetString(Item) ?? string.Empty, @"(\d+)|(\D+)", Eva => Eva.Value.PadLeft(MaxLength, char.IsDigit(Eva.Value[0]) ? ' ' : '\xffff'))
-                    }).OrderBy(x => x.SortString).Select(x => x.OriginItem);
+                    return Collection.OrderBy(x => x.SortString).Select(x => x.OriginItem);
                 }
                 else
                 {
-                    return Input.Select(Item => new
-                    {
-                        OriginItem = Item,
-                        SortString = Regex.Replace(GetString(Item) ?? string.Empty, @"(\d+)|(\D+)", Eva => Eva.Value.PadLeft(MaxLength, char.IsDigit(Eva.Value[0]) ? ' ' : '\xffff'))
-                    }).OrderByDescending(x => x.SortString).Select(x => x.OriginItem);
+                    return Collection.OrderByDescending(x => x.SortString).Select(x => x.OriginItem);
                 }
             }
             else
             {
-                return new List<T>();
+                return Input;
             }
         }
 
