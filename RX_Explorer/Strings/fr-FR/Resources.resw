@@ -1747,9 +1747,6 @@
   <data name="Progress_Tip_NoFeedback" xml:space="preserve">
     <value>Aucun commentaire ou suggestion</value>
   </data>
-  <data name="QueueDialog_AddDeviceFail_Content" xml:space="preserve">
-    <value>Impossible de retirer l'appareil à cause d'un manque de permissions. Nom de l'appareil:</value>
-  </data>
   <data name="QueueDialog_BootAtStart_Content" xml:space="preserve">
     <value>RX ne peut pas être démarré automatiquement car le démarrage est désactivé par le système\rVous pouvez aller à cette page [System Settings] pour modifier ceci</value>
     <comment>Please keep all \r in this sentence after translate</comment>
@@ -2045,9 +2042,6 @@
   </data>
   <data name="FeedBackTranslateButton.Label" xml:space="preserve">
     <value>Traduire</value>
-  </data>
-  <data name="Common_Dialog_DoNotTip" xml:space="preserve">
-    <value>Aucune invite</value>
   </data>
   <data name="QueueDialog_FolderRepeat_CloseButton" xml:space="preserve">
     <value>Enregistrer la copie</value>
@@ -2663,5 +2657,47 @@ Les noms non valides incluent
   </data>
   <data name="QuickStartPickFileType.Text" xml:space="preserve">
     <value>Quel type souhaitez-vous choisir?</value>
+  </data>
+  <data name="BluetoothAudioQuestionTip.Subtitle" xml:space="preserve">
+    <value>Cette fonction peut vous aider à partager l'audio d'autres appareils via Bluetooth et à le lire sur cet appareil. Remarque: vous devez d'abord vous associer avec d'autres appareils Bluetooth avant d'utiliser cette fonction, sinon l'appareil Bluetooth ne sera pas détecté.</value>
+  </data>
+  <data name="BluetoothAudioQuestionTip.Title" xml:space="preserve">
+    <value>Lecture audio Bluetooth</value>
+  </data>
+  <data name="BluetoothAudioSelectionTip.Title" xml:space="preserve">
+    <value>Sélectionnez la source audio Bluetooth</value>
+  </data>
+  <data name="BluetoothVerisonIncorrectTip.Text" xml:space="preserve">
+    <value>Cette fonctionnalité nécessite Win10 2004 ou supérieur</value>
+  </data>
+  <data name="BluetoothAudio.Text" xml:space="preserve">
+    <value>Audio Bluetooth</value>
+  </data>
+  <data name="BluetoothAudio_Button_Text_1" xml:space="preserve">
+    <value>Relier</value>
+  </data>
+  <data name="BluetoothAudio_Button_Text_2" xml:space="preserve">
+    <value>Déconnecter</value>
+  </data>
+  <data name="BluetoothAudio_Status_1" xml:space="preserve">
+    <value>Prêt à se connecter</value>
+  </data>
+  <data name="BluetoothAudio_Status_2" xml:space="preserve">
+    <value>De liaison...</value>
+  </data>
+  <data name="BluetoothAudio_Status_3" xml:space="preserve">
+    <value>Lié</value>
+  </data>
+  <data name="BluetoothAudio_Status_4" xml:space="preserve">
+    <value>Délai de connexion, l'appareil ne répond pas</value>
+  </data>
+  <data name="BluetoothAudio_Status_5" xml:space="preserve">
+    <value>Windows a refusé d'établir une connexion</value>
+  </data>
+  <data name="BluetoothAudio_Status_6" xml:space="preserve">
+    <value>Erreur inconnue détectée</value>
+  </data>
+  <data name="BluetoothAudio_Status_7" xml:space="preserve">
+    <value>Impossible d'établir la connexion</value>
   </data>
 </root>

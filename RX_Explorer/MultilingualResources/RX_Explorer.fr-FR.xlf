@@ -2310,10 +2310,6 @@ Illegal characters include \ / : * ? " <it id="1" pos="open">&lt; &gt;</it> |</s
           <source>No feedback or suggestions</source>
           <target state="translated">Aucun commentaire ou suggestion</target>
         </trans-unit>
-        <trans-unit id="QueueDialog_AddDeviceFail_Content" translate="yes" xml:space="preserve">
-          <source>Cannot add removable device due to lack of sufficient permissions, Device name:</source>
-          <target state="translated">Impossible de retirer l'appareil à cause d'un manque de permissions. Nom de l'appareil:</target>
-        </trans-unit>
         <trans-unit id="QueueDialog_BootAtStart_Content" translate="yes" xml:space="preserve">
           <source>RX cannot be turned on automatically because startup is disabled by the system\rYou can go to the [System Settings] page to manage</source>
           <target state="translated">RX ne peut pas être démarré automatiquement car le démarrage est désactivé par le système\rVous pouvez aller à cette page [System Settings] pour modifier ceci</target>
@@ -2703,10 +2699,6 @@ Illegal characters include \ / : * ? " <it id="1" pos="open">&lt; &gt;</it> |</s
         <trans-unit id="FeedBackTranslateButton.Label" translate="yes" xml:space="preserve">
           <source>Translate</source>
           <target state="translated">Traduire</target>
-        </trans-unit>
-        <trans-unit id="Common_Dialog_DoNotTip" translate="yes" xml:space="preserve">
-          <source>No prompt</source>
-          <target state="translated">Aucune invite</target>
         </trans-unit>
         <trans-unit id="QueueDialog_FolderRepeat_CloseButton" translate="yes" xml:space="preserve">
           <source>Save copy</source>
@@ -3532,6 +3524,62 @@ Les noms non valides incluent
         <trans-unit id="QuickStartPickFileType.Text" translate="yes" xml:space="preserve">
           <source>Which type do you want to choose?</source>
           <target state="translated">Quel type souhaitez-vous choisir?</target>
+        </trans-unit>
+        <trans-unit id="BluetoothAudioQuestionTip.Subtitle" translate="yes" xml:space="preserve">
+          <source>This feature can help you share audio from other devices via Bluetooth and play it on this device. Note: You must first pair with other Bluetooth devices before using this function, otherwise the Bluetooth device will not be detected.</source>
+          <target state="translated">Cette fonction peut vous aider à partager l'audio d'autres appareils via Bluetooth et à le lire sur cet appareil. Remarque: vous devez d'abord vous associer avec d'autres appareils Bluetooth avant d'utiliser cette fonction, sinon l'appareil Bluetooth ne sera pas détecté.</target>
+        </trans-unit>
+        <trans-unit id="BluetoothAudioQuestionTip.Title" translate="yes" xml:space="preserve">
+          <source>Bluetooth audio playback</source>
+          <target state="translated">Lecture audio Bluetooth</target>
+        </trans-unit>
+        <trans-unit id="BluetoothAudioSelectionTip.Title" translate="yes" xml:space="preserve">
+          <source>Select Bluetooth audio source</source>
+          <target state="translated">Sélectionnez la source audio Bluetooth</target>
+        </trans-unit>
+        <trans-unit id="BluetoothVerisonIncorrectTip.Text" translate="yes" xml:space="preserve">
+          <source>This feature requires Win10 2004 or above</source>
+          <target state="translated">Cette fonctionnalité nécessite Win10 2004 ou supérieur</target>
+        </trans-unit>
+        <trans-unit id="BluetoothAudio.Text" translate="yes" xml:space="preserve">
+          <source>Bluetooth audio</source>
+          <target state="translated">Audio Bluetooth</target>
+        </trans-unit>
+        <trans-unit id="BluetoothAudio_Button_Text_1" translate="yes" xml:space="preserve">
+          <source>Connect</source>
+          <target state="translated">Relier</target>
+        </trans-unit>
+        <trans-unit id="BluetoothAudio_Button_Text_2" translate="yes" xml:space="preserve">
+          <source>Disconnect</source>
+          <target state="translated">Déconnecter</target>
+        </trans-unit>
+        <trans-unit id="BluetoothAudio_Status_1" translate="yes" xml:space="preserve">
+          <source>Ready to connect</source>
+          <target state="translated">Prêt à se connecter</target>
+        </trans-unit>
+        <trans-unit id="BluetoothAudio_Status_2" translate="yes" xml:space="preserve">
+          <source>Connecting...</source>
+          <target state="translated">De liaison...</target>
+        </trans-unit>
+        <trans-unit id="BluetoothAudio_Status_3" translate="yes" xml:space="preserve">
+          <source>Connected</source>
+          <target state="translated">Lié</target>
+        </trans-unit>
+        <trans-unit id="BluetoothAudio_Status_4" translate="yes" xml:space="preserve">
+          <source>Connection timeout, the device does not respond</source>
+          <target state="translated">Délai de connexion, l'appareil ne répond pas</target>
+        </trans-unit>
+        <trans-unit id="BluetoothAudio_Status_5" translate="yes" xml:space="preserve">
+          <source>Windows refused to establish a connection</source>
+          <target state="translated">Windows a refusé d'établir une connexion</target>
+        </trans-unit>
+        <trans-unit id="BluetoothAudio_Status_6" translate="yes" xml:space="preserve">
+          <source>Unknown error detected</source>
+          <target state="translated">Erreur inconnue détectée</target>
+        </trans-unit>
+        <trans-unit id="BluetoothAudio_Status_7" translate="yes" xml:space="preserve">
+          <source>Could not establish connection</source>
+          <target state="translated">Impossible d'établir la connexion</target>
         </trans-unit>
       </group>
     </body>
