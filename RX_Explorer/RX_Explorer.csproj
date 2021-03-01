@@ -162,6 +162,7 @@
     <Compile Include="Class\AppThemeController.cs" />
     <Compile Include="Class\CommonAccessCollection.cs" />
     <Compile Include="Class\CommonEnvironmentVariables.cs" />
+    <Compile Include="Class\CompressionUtil.cs" />
     <Compile Include="Class\ContextMenuItem.cs" />
     <Compile Include="Class\Enum.cs" />
     <Compile Include="Class\Exception.cs" />
@@ -192,6 +193,9 @@
     <Compile Include="Class\ViewModeController.cs" />
     <Compile Include="Class\WIN_Native_API.cs" />
     <Compile Include="Class\CredentialProtector.cs" />
+    <Compile Include="CustomControl\MenuFlyoutItemWithImage.xaml.cs">
+      <DependentUpon>MenuFlyoutItemWithImage.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Dialog\BitlockerPasswordDialog.xaml.cs">
       <DependentUpon>BitlockerPasswordDialog.xaml</DependentUpon>
     </Compile>
@@ -266,6 +270,9 @@
     <Compile Include="Class\QuickStartItem.cs" />
     <Compile Include="Class\SQLite.cs" />
     <Compile Include="Program.cs" />
+    <Compile Include="CustomControl\AppBarButtonWithImage.xaml.cs">
+      <DependentUpon>AppBarButtonWithImage.xaml</DependentUpon>
+    </Compile>
     <Compile Include="View\BlueScreen.xaml.cs">
       <DependentUpon>BlueScreen.xaml</DependentUpon>
     </Compile>
@@ -339,8 +346,8 @@
     <Compile Include="View\TextViewer.xaml.cs">
       <DependentUpon>TextViewer.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Dialog\ZipDialog.xaml.cs">
-      <DependentUpon>ZipDialog.xaml</DependentUpon>
+    <Compile Include="Dialog\CompressDialog.xaml.cs">
+      <DependentUpon>CompressDialog.xaml</DependentUpon>
     </Compile>
     <Compile Include="Class\Win10VersionChecker.cs" />
     <Compile Include="Class\WiFiShareProvider.cs" />
@@ -471,6 +478,10 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Page Include="CustomControl\MenuFlyoutItemWithImage.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="Dialog\BitlockerPasswordDialog.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -544,6 +555,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="GlobeDictionary.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="CustomControl\AppBarButtonWithImage.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -639,7 +654,7 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="Dialog\ZipDialog.xaml">
+    <Page Include="Dialog\CompressDialog.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
