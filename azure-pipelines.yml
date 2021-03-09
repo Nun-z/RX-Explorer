@@ -47,7 +47,7 @@ jobs:
         script: |
           Write-Host "Start adding the PFX file to the certificate store."
 
-          $pfxpath = $(Agent.TempDirectory)\PPSSPPCert.pfx'
+          $pfxpath = '$(Agent.TempDirectory)\PPSSPPCert.pfx'
           $password = 'test'      
       
           Add-Type -AssemblyName System.Security
