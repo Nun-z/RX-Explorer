@@ -36,10 +36,10 @@ jobs:
         restoreSolution: '$(solution)'
 
     - task: DownloadSecureFile@1
-      name: secureFile
-      displayName: 'Download CA Certificate'
+      name: mySecureFile
+      displayName: 'Get the pfx file certificate'
       inputs:
-        secureFile: '$(signingCert.secureFileName)'
+         secureFile: 'PPSSPPCert.pfx'
 
     - task: PowerShell@2
       inputs:
@@ -47,8 +47,8 @@ jobs:
         script: |
           Write-Host "Start adding the PFX file to the certificate store."
 
-          $pfxpath = '$(secureFile.secureFilePath)'
-          $password = '$(signingCert.password)'      
+          $pfxpath = $(Agent.TempDirectory)\PPSSPPCert.pfx'
+          $password = 'test'      
       
           Add-Type -AssemblyName System.Security
           $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2
@@ -75,8 +75,8 @@ jobs:
         archiveFile: '$(publishZipPath)'
         replaceExistingArchive: true
     
-    - task: PublishBuildArtifacts@1
-      displayName: 'Publish Artifact: Package'
-      inputs:
-        ArtifactName: 'Download_Publish'
-        PathtoPublish: '$(publishZipPath)'
+    #- task: PublishBuildArtifacts@1
+     # displayName: 'Publish Artifact: Package'
+      #inputs:
+       # ArtifactName: 'Download_Publish'
+        #PathtoPublish: '$(publishZipPath)'
