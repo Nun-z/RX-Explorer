@@ -62,21 +62,7 @@ jobs:
       displayName: 'Build RX-Explorer'
       inputs:
         solution: '$(solution)'
-        msbuildArgs: '/t:$(buildProject):Rebuild /p:AppxBundlePlatforms="$(buildPlatform)" /p:AppxPackageDir="$(appxPackageDir)" /p:AppxBundle=Always /p:UapAppxPackageBuildMode=StoreUpload /p:AppxPackageSigningEnabled=true /p:PackageCertificateThumbprint="0bbfdbd9c447c9d649842b156ab88bb1c883023d" /p:PackageCertificateKeyFile="$(Agent.TempDirectory)\PPSSPPCert.pfx" /p:PackageCertificatePassword="test"'
+        msbuildArgs: '/t:$(buildProject):Rebuild /p:AppxBundlePlatforms="$(buildPlatform)" /p:AppxPackageDir="$(appxPackageDir)" /p:AppxBundle=Always /p:UapAppxPackageBuildMode=StoreUpload /p:AppxPackageSigningEnabled=true'
         configuration: '$(buildConfiguration)'
         clean: true
         msbuildArchitecture: 'x64'
-
-    - task: ArchiveFiles@2
-      inputs:
-        rootFolderOrFile: '$(appxPackageDir)'
-        includeRootFolder: false
-        archiveType: 'zip'
-        archiveFile: '$(publishZipPath)'
-        replaceExistingArchive: true
-    
-    #- task: PublishBuildArtifacts@1
-     # displayName: 'Publish Artifact: Package'
-      #inputs:
-       # ArtifactName: 'Download_Publish'
-        #PathtoPublish: '$(publishZipPath)'
