@@ -1,6 +1,8 @@
 # RX文件管理器
 
-[![Build Status](https://dev.azure.com/zhuxb711/RX-Explorer/_apis/build/status/zhuxb711.RX-Explorer?branchName=master)](https://dev.azure.com/zhuxb711/RX-Explorer/_build/latest?definitionId=1&branchName=master) [![GitHub license](https://img.shields.io/github/license/zhuxb711/RX-Explorer?color=%2340C0D0&label=License)](https://github.com/zhuxb711/RX-Explorer/blob/master/LICENSE) [![GitHub issues](https://img.shields.io/github/issues/zhuxb711/RX-Explorer?color=orange&label=Issues)](https://github.com/zhuxb711/RX-Explorer/issues)
+CI on commit to repo:
+
+[![Build Status](https://dev.azure.com/Nun-z/RX%20File%20Explorer/_apis/build/status/Nun-z.RX-Explorer?branchName=master)](https://dev.azure.com/Nun-z/RX%20File%20Explorer/_build/latest?definitionId=24&branchName=master)
 
 一款完全免费无广告的文件管理器。
 
